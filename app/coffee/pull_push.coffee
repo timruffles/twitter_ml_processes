@@ -8,22 +8,35 @@ twit = new twitter
   access_token_secret: "STATE YOUR NAME"
 
 pg = require("pg")
-redisLib = require("redis")
-redisClient = redisLib.createClient()
+redis = require("redis")
+redisClient = redis.createClient()
+pubnub = require("pubnub")
 
 events = require('events')
 
 conString = "tcp://postgres:1234@localhost/postgres"
-pgClient = new pgLib.Client(conString)
+pgClient = new pg.Client(conString)
 
-redisClient.subscribe("searchUpdates")
-redisClient.on "newSearch", (channel,msg) ->
-  
+app = {}
+redisClient.get "keywords", (keywords) ->
+  app.keywords = keywords
+
 keywordEvents = new events.EventEmitter
-twit.stream "statuses/filter", (stream) ->
-  stream.on "data", (data) ->
-    text = data.text.replace(/#;,.;/," ").replace("[^\d\w]","")
-    keywordEvents.emit("keywords",text,tweet)
+makeStream = (established) ->
+  twit.stream "statuses/filter", app.keywords, (stream) ->
+    established()
+    stream.on "data", (data) ->
+      text = data.text.replace(/#;,.;/," ").replace("[^\d\w]","")
+      keywordEvents.emit("tweet",text,tweet)
+stream = makeStream()
+
+userUpdates = redisClient.subscribe "userUpdates"
+userUpdates.on "message", (data) ->
+  redisClient.get "keywords", (keywords) ->
+    app.keywords = keywords
+    newStream = makeStream ->
+      stream.destroy()
+      stream = newStream
 
 extract = (keys,obj) ->
   view = {}
@@ -31,20 +44,21 @@ extract = (keys,obj) ->
     view[key] = obj[key]
   view
 
-keywordEvents.on "keywords", (text,tweet) ->
+userTweetEvents = new events.EventEmitter
+keywordEvents.on "tweet", (text,tweet) ->
   words = text.split(" ")
   words.forEach (word) ->
     redisClient.smembers "or_#{word}", (memberIds) ->
+      memberIds.forEach (id) ->
+        userTweetEvents.emit "user-tweet", id, tweet
+
+P_GOOD_MIN = 0.3
+P_BAX_MAX = 0.3
+userTweetEvents.on "tweet", (userId,tweet) ->
+  crm.classify userId,tweet, (pGood,pBad) ->
+    if pGood > P_GOOD_MIN && pBad < P_BAD_MAX
       pubnub.publish
         channel : "user:#{id}:tweets:add"
-        message : extract ["text","id","created_at"]
+        message : extract ["text","id","created_at"], tweet
 
-  # naive but manageable phrase handelling - exact match
-  phrases = text.split(",").filter (text) ->
-    trimmed = text.replace(/^\s+/,"").replace(/\s+$/,"")
-    trimmed.split(" ").length > 1
-  phrases.filter (phrase) ->
-    redisClient.isMember "phrase_#{phrase}"
-
-pubnub = require("pusher")
 
