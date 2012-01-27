@@ -1,2 +1,2 @@
 require("coffee-script")
-module.exports = require("app/coffee/pull_push")
+module.exports = require("./app/js/pull_push")
