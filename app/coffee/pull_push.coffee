@@ -47,14 +47,14 @@ BORING = "boring"
 
 # we receive user updates here, and emit training updates
 trainingEvents = new events.EventEmitter
-userUpdates = redisClient.subscribe "userUpdates"
-userUpdates.on "message", (channel,data) ->
+searchUpdates = redisClient.subscribe "searchUpdates"
+searchUpdates.on "message", (channel,data) ->
   message = JSON.parse(data)
   switch message.type
     when "keywordsChanged"
       reconnect()
     when "train"
-      trainingEvents.emit "train", data.userId, data.tweet, data.category
+      trainingEvents.emit "train", data.searchId, data.tweet, data.category
 
 extract = (keys,obj) ->
   view = {}
@@ -63,29 +63,29 @@ extract = (keys,obj) ->
   view
 
 # ## Classification stream
-userTweetEvents = new events.EventEmitter
+searchTweetEvents = new events.EventEmitter
 twitterEvents.on "tweet", (text,tweet) ->
   words = text.split(" ")
   words.forEach (word) ->
-    # or and and matches are stored in sets of userIds who are listening
-    redisClient.smembers "or_#{word}", (userIds) ->
-      userIds.forEach (id) ->
-        userTweetEvents.emit "match", id, tweet
+    # or and and matches are stored in sets of searchIds who are listening
+    redisClient.smembers "or_#{word}", (searchIds) ->
+      searchIds.forEach (id) ->
+        searchTweetEvents.emit "match", id, tweet
     # TODO support and queries - should be reasonably simple as it's AND_WORDS * O(1) lookups
     # users.withAndWords.each (user) ->
     #   if user.words.every (word) -> tweetWords[word]
-    #     userTweetEvents.emit "match", id, tweet
+    #     searchTweetEvents.emit "match", id, tweet
   pgClient.query "INSERT INTO tweets (id, tweet, created_at) values ($1, $2, $3)", [tweet.id, JSON.stringify(tweet), tweet.created_at]
 
 brain = require("brain")
-getBayes = (userId) ->
+getBayes = (searchId) ->
   new brain.BayesianClassifier
     backend :
       type: 'Redis'
       options:
         hostname: 'localhost'
         port: 6379
-        name: "tweet_classifications:#{userId}" # namespace so you can persist training
+        name: "tweet_classifications:#{searchId}" # namespace so you can persist training
     thresholds:
       spam: 3 # higher threshold for spam
       notspam: 1 # 1 is default threshold for all categories
@@ -95,18 +95,18 @@ classificationString (tweet) ->
   # for now, let's simply classify like this
   tweet.text.toLowerCase()
 
-trainingEvents.on "train", (userId,tweet,category) ->
-  getBayes(userId).train(classificationString(tweet),category)
+trainingEvents.on "train", (searchId,tweet,category) ->
+  getBayes(searchId).train(classificationString(tweet),category)
 
-userTweetEvents.on "match", (userId,tweet) ->
-  getBayes(userId).classify classificationString(tweet), (category) ->
+searchTweetEvents.on "match", (searchId,tweet) ->
+  getBayes(searchId).classify classificationString(tweet), (category) ->
     tweet.category = category
     # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
     pubnub.publish
-      channel : "user:#{userId}:tweets:add"
+      channel : "search:#{searchId}:tweets:add"
       message :
         tweet: tweet
     # store the tweet's classification for if user isn't online right now
-    pgClient.query "INSERT INTO users_tweets (user_id, tweet_id, category) VALUES ($1, $2, $3)", [userId, tweet.id, category]
+    pgClient.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
 
 module.exports = {}
