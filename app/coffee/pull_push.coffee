@@ -1,42 +1,60 @@
+# # Backend processes
 sys = require("sys")
-twitter = require("ntwitter")
-
-twit = new twitter
-  consumer_key: "STATE YOUR NAME"
-  consumer_secret: "STATE YOUR NAME"
-  access_token_key: "STATE YOUR NAME"
-  access_token_secret: "STATE YOUR NAME"
-
-pg = require("pg")
 redis = require("redis")
 redisClient = redis.createClient()
-pubnub = require("pubnub")
-
 events = require('events')
+pubnunb = require("pubnub")
 
-conString = "tcp://postgres:1234@localhost/postgres"
-pgClient = new pg.Client(conString)
-
+# our configuartion object
 app = {}
-redisClient.get "keywords", (keywords) ->
-  app.keywords = keywords
+pg = require("pg")
+pgClient = pg.Client()
 
-keywordEvents = new events.EventEmitter
+# ## Twitter watcher
+twitter = require("ntwitter")
+twit = new twitter
+  consumer_key: process.env.TWITTER_CONSUMER_KEY
+  consumer_secret: process.env.TWITTER_CONSUMER_SECRET
+  access_token_key: process.env.TWITTER_TOKEN_KEY
+  access_token_secret: process.env.TWITTER_TOKEN_SECRET
+
+twitterEvents = new events.EventEmitter
 makeStream = (established) ->
   twit.stream "statuses/filter", app.keywords, (stream) ->
     established()
     stream.on "data", (data) ->
       text = data.text.replace(/#;,.;/," ").replace("[^\d\w]","")
-      keywordEvents.emit("tweet",text,tweet)
-stream = makeStream()
+      twitterEvents.emit("tweet",text,tweet)
 
-userUpdates = redisClient.subscribe "userUpdates"
-userUpdates.on "message", (data) ->
+# load keywords, establish stream
+stream = null
+redisClient.get "keywords", (keywords) ->
+  app.keywords = keywords
+  stream = makeStream()
+
+reconnect = ->
+  # on keyword update, create a new stream, immediately disconnect old
   redisClient.get "keywords", (keywords) ->
     app.keywords = keywords
     newStream = makeStream ->
       stream.destroy()
       stream = newStream
+
+
+# ## User updates
+INTERESTING = "interesting"
+BORING = "boring"
+
+# we receive user updates here, and emit training updates
+trainingEvents = new events.EventEmitter
+userUpdates = redisClient.subscribe "userUpdates"
+userUpdates.on "message", (channel,data) ->
+  message = JSON.parse(data)
+  switch message.type
+    when "keywordsChanged"
+      reconnect()
+    when "train"
+      trainingEvents.emit "train", data.userId, data.tweet, data.category
 
 extract = (keys,obj) ->
   view = {}
@@ -44,21 +62,51 @@ extract = (keys,obj) ->
     view[key] = obj[key]
   view
 
+# ## Classification stream
 userTweetEvents = new events.EventEmitter
-keywordEvents.on "tweet", (text,tweet) ->
+twitterEvents.on "tweet", (text,tweet) ->
   words = text.split(" ")
   words.forEach (word) ->
-    redisClient.smembers "or_#{word}", (memberIds) ->
-      memberIds.forEach (id) ->
-        userTweetEvents.emit "user-tweet", id, tweet
+    # or and and matches are stored in sets of userIds who are listening
+    redisClient.smembers "or_#{word}", (userIds) ->
+      userIds.forEach (id) ->
+        userTweetEvents.emit "match", id, tweet
+    # TODO support and queries - should be reasonably simple as it's AND_WORDS * O(1) lookups
+    # users.withAndWords.each (user) ->
+    #   if user.words.every (word) -> tweetWords[word]
+    #     userTweetEvents.emit "match", id, tweet
+  pgClient.query "INSERT INTO tweets (id, tweet, created_at) values ($1, $2, $3)", [tweet.id, JSON.stringify(tweet), tweet.created_at]
 
-P_GOOD_MIN = 0.3
-P_BAX_MAX = 0.3
-userTweetEvents.on "tweet", (userId,tweet) ->
-  crm.classify userId,tweet, (pGood,pBad) ->
-    if pGood > P_GOOD_MIN && pBad < P_BAD_MAX
-      pubnub.publish
-        channel : "user:#{id}:tweets:add"
-        message : extract ["text","id","created_at"], tweet
+brain = require("brain")
+getBayes = (userId) ->
+  new brain.BayesianClassifier
+    backend :
+      type: 'Redis'
+      options:
+        hostname: 'localhost'
+        port: 6379
+        name: "tweet_classifications:#{userId}" # namespace so you can persist training
+    thresholds:
+      spam: 3 # higher threshold for spam
+      notspam: 1 # 1 is default threshold for all categories
+    def: 'notspam' # category if can't classify
 
+classificationString (tweet) ->
+  # for now, let's simply classify like this
+  tweet.text.toLowerCase()
 
+trainingEvents.on "train", (userId,tweet,category) ->
+  getBayes(userId).train(classificationString(tweet),category)
+
+userTweetEvents.on "match", (userId,tweet) ->
+  getBayes(userId).classify classificationString(tweet), (category) ->
+    tweet.category = category
+    # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
+    pubnub.publish
+      channel : "user:#{userId}:tweets:add"
+      message :
+        tweet: tweet
+    # store the tweet's classification for if user isn't online right now
+    pgClient.query "INSERT INTO users_tweets (user_id, tweet_id, category) VALUES ($1, $2, $3)", [userId, tweet.id, category]
+
+module.exports = {}
