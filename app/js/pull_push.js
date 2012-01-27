@@ -17,6 +17,9 @@ twitterWatcher = new require("twitter_watcher")(twit);
 searches.on("keywordsChanged", function(keywords) {
   return twitterWatcher.connect(keywords);
 });
+twitterWatcher.on("tweet", function(tweet) {
+  return searches.tweet(tweet);
+});
 searches.on("match", function(searchId, tweet) {
   return classifier.classify(searchId, tweet);
 });

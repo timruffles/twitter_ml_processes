@@ -5,11 +5,17 @@ access_token_secret: 'McuSkQmjICzekjhXdMgpfKYe5KTMCUnMxOARZLQXM'});
 cb =  function namedCb (name) {
   return function(d){ console.log(name,d.text) };
 }
+function reconnect(reason) {
+  return function() {
+    console.log('reconnecting due to',reason);
+    connect();
+  }
+}
 function connect() {
   twit.stream("statuses/filter",{track: "cameron"},function(s) { 
     s.on("data", cb("data")) ;
-    s.on("end", connect);
-    s.on("destroy", connect);
+    s.on("end", reconnect("end"));
+    s.on("destroy", reconnect('destroy'));
   })
 };
 connect();

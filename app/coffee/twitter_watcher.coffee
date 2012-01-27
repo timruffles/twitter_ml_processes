@@ -3,16 +3,22 @@ class TweetWatcher extends require("events").EventEmitter
     this
   makeStream: (keywords, established) ->
     twitterEvents = this
-    @twit.stream "statuses/filter", {track:keywords}, (stream) ->
+    @twit.stream "statuses/filter", {track:keywords}, (stream) =>
       established(stream)
-      stream.on "data", (data) ->
-        text = data.text.replace(/#;,.;/," ").replace("[^\d\w]","")
-        twitterEvents.emit("tweet",text,tweet)
+      stream.on "data", (data) =>
+        twitterEvents.emit("tweet",data)
+      stream.on "end", =>
+        @connect(keywords)
+      stream.on "destroy", =>
+        @connect(keywords)
 
   connect: (keywords) ->
     # load keywords, establish stream
     @makeStream keywords, (newStream) =>
-      @stream?.destroy()
+      if @stream
+        @stream.removeAllListeners("end")
+        @stream.removeAllListeners("destroy")
+        @stream.destroy()
       @stream = newStream
 
 exports.TweetWatcher = TweetWatcher

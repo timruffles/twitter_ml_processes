@@ -18,20 +18,25 @@ TweetWatcher = (function() {
     twitterEvents = this;
     return this.twit.stream("statuses/filter", {
       track: keywords
-    }, function(stream) {
+    }, __bind(function(stream) {
       established(stream);
-      return stream.on("data", function(data) {
-        var text;
-        text = data.text.replace(/#;,.;/, " ").replace("[^\d\w]", "");
-        return twitterEvents.emit("tweet", text, tweet);
-      });
-    });
+      stream.on("data", __bind(function(data) {
+        return twitterEvents.emit("tweet", data);
+      }, this));
+      stream.on("end", __bind(function() {
+        return this.connect(keywords);
+      }, this));
+      return stream.on("destroy", __bind(function() {
+        return this.connect(keywords);
+      }, this));
+    }, this));
   };
   TweetWatcher.prototype.connect = function(keywords) {
     return this.makeStream(keywords, __bind(function(newStream) {
-      var _ref;
-      if ((_ref = this.stream) != null) {
-        _ref.destroy();
+      if (this.stream) {
+        this.stream.removeAllListeners("end");
+        this.stream.removeAllListeners("destroy");
+        this.stream.destroy();
       }
       return this.stream = newStream;
     }, this));

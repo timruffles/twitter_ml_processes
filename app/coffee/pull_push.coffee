@@ -21,6 +21,9 @@ twitterWatcher = new require("twitter_watcher")(twit)
 searches.on "keywordsChanged", (keywords) ->
   twitterWatcher.connect(keywords)
 
+twitterWatcher.on "tweet", (tweet) ->
+  searches.tweet tweet
+
 # when a search matches a tweet, classify it to see if it's interesting
 searches.on "match", (searchId,tweet) ->
   classifier.classify searchId, tweet

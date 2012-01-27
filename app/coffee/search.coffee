@@ -16,8 +16,10 @@ class Search extends require("events").EventEmitter
     @redis.set "searches:#{event.id}", JSON.stringify search
     added.forEach (word) ->
       @redis.sadd "or_#{word}", event.id
-  tweet: (text,tweet) ->
-    words = text.split(" ")
+  tweet: (tweet) ->
+    text = tweet.text
+    text = data.text.replace(/#;,.;/," ").replace("[^\d\w-]","")
+    words = tweet.split(" ")
     searchTweetEvents = this
     words.forEach (word) ->
       # or and and matches are stored in sets of searchIds who are listening

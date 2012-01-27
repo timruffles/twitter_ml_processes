@@ -35,9 +35,11 @@ Search = (function() {
       return this.redis.sadd("or_" + word, event.id);
     });
   };
-  Search.prototype.tweet = function(text, tweet) {
-    var searchTweetEvents, words;
-    words = text.split(" ");
+  Search.prototype.tweet = function(tweet) {
+    var searchTweetEvents, text, words;
+    text = tweet.text;
+    text = data.text.replace(/#;,.;/, " ").replace("[^\d\w-]", "");
+    words = tweet.split(" ");
     searchTweetEvents = this;
     words.forEach(function(word) {
       return this.redis.smembers("or_" + word, function(searchIds) {
