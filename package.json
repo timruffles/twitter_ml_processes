@@ -9,5 +9,6 @@
    , "redis": "0.7.1"
    , "coffee-script": "1.2.0"
    , "brain": "0.3.5"
+   , "node-promise": "0.2.0"
   }
 }
