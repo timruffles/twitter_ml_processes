@@ -1,4 +1,4 @@
-var Classifier, Search, TwitterWatcher, classifier, events, logger, pg, pgClient, pubnunb, redis, redisClient, searches, sys, twit, twitter, twitterWatcher;
+var Classifier, Search, TwitterWatcher, classifier, events, logger, pg, pgClient, pubnunb, redis, redisClient, searches, sys, twit, twitter, twitterWatcher, updator;
 
 sys = require("sys");
 
@@ -14,7 +14,9 @@ logger = require("./logger");
 
 pg = require("pg");
 
-pgClient = pg.Client();
+pgClient = new pg.Client("tcp://postgres:1234@localhost/postgres");
+
+pgClient.connect();
 
 twitter = require("ntwitter");
 
@@ -65,19 +67,21 @@ classifier.on("classified", function(tweet, searchId, category) {
   });
 });
 
-redisClient.subscribe("modelUpdates");
+updator = redis.createClient();
 
-redisClient.on("message", function(channel, data) {
+updator.subscribe("modelUpdates");
+
+updator.on("message", function(channel, data) {
   var message;
-  console.log("msg on " + channel);
+  logger.log("msg on " + channel);
   if (channel !== "modelUpdates") return;
   message = JSON.parse(data);
   switch (message.type) {
     case "Search":
       logger.log("search updated, " + message.id);
-      return Search.update(message);
+      return searches.update(message);
     case "ClassifiedTweet":
-      logger.log("search trained, " + message.searchId + " " + message.tweetId + " " + message.category);
+      logger.log("searcords changed, 'foo bar baz'h trained, " + message.searchId + " " + message.tweetId + " " + message.category);
       return classifier.train("train", message.searchId, message.tweet, message.category);
   }
 });

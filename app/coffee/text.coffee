@@ -10,11 +10,11 @@ possessives = /'s/g
 
 module.exports = text =
   textToTrimmedWords: (phrase = "") ->
-    phrase.split(" ").map((word) ->
-      word.toLowerCase()
-          .replace(trailingWS,"")
+    phrase.toLowerCase()
           .replace(separators," ")
           .replace(quotes,"")
+          .split(" ").map((word) ->
+      word.replace(trailingWS,"")
     ).filter (word) ->
       !/^\s*$/.test word
   twitterTextToKeywords: (phrase = "") ->

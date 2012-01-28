@@ -7,7 +7,8 @@ pubnunb = require("pubnub")
 logger = require("./logger")
 
 pg = require("pg")
-pgClient = pg.Client()
+pgClient = new pg.Client("tcp://postgres:1234@localhost/postgres")
+pgClient.connect()
 
 twitter = require("ntwitter")
 twit = new twitter
@@ -49,17 +50,18 @@ classifier.on "classified", (tweet,searchId,category) ->
       tweet: tweet
 
 # we listen here for any modifications to our models
-redisClient.subscribe "modelUpdates"
-redisClient.on "message", (channel,data) ->
-  console.log "msg on #{channel}"
+updator = redis.createClient()
+updator.subscribe "modelUpdates"
+updator.on "message", (channel,data) ->
+  logger.log "msg on #{channel}"
   return unless channel == "modelUpdates"
   message = JSON.parse(data)
   switch message.type
     when "Search"
       logger.log "search updated, #{message.id}"
-      Search.update(message)
+      searches.update(message)
     when "ClassifiedTweet"
-      logger.log "search trained, #{message.searchId} #{message.tweetId} #{message.category}"
+      logger.log "searcords changed, 'foo bar baz'h trained, #{message.searchId} #{message.tweetId} #{message.category}"
       classifier.train "train", message.searchId, message.tweet, message.category
 
 module.exports = {}

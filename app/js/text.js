@@ -19,8 +19,8 @@ possessives = /'s/g;
 module.exports = text = {
   textToTrimmedWords: function(phrase) {
     if (phrase == null) phrase = "";
-    return phrase.split(" ").map(function(word) {
-      return word.toLowerCase().replace(trailingWS, "").replace(separators, " ").replace(quotes, "");
+    return phrase.toLowerCase().replace(separators, " ").replace(quotes, "").split(" ").map(function(word) {
+      return word.replace(trailingWS, "");
     }).filter(function(word) {
       return !/^\s*$/.test(word);
     });
