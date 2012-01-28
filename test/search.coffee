@@ -1,5 +1,6 @@
 assert = require "assert"
 redis = require("redis").createClient()
+npromise = require "node-promise"
 Search  = require("../app/js/search").Search
 
 
@@ -35,10 +36,42 @@ tests = [
     search.on "keywordsChanged", (keywords) ->
       assert.sameMembers expected, keywords, "stores keywords"
       testSearchCreated()
+  (promise) ->
+    stored = false
+    matched = false
+    search = new Search(redis,{query: ->
+      stored = true})
+    search.update
+      id: 15
+      changed:
+        keywords: "foo"
+    search.on "match", (id, tweet) ->
+      promise.resolve()
+    setTimeout ->
+      search.tweet
+        text: "foo"
+        entities: {}
+        user: {}
+      assert stored, "stores in db"
+    , 100
+    promise
 ]
 
-tests.forEach (t) -> 
-  redis.flushall()
-  t()
 
+tests.forEach (t) ->
+  promise = new npromise.Promise
+  deferred = t(promise)
+  if deferred.then
+    passed = false
+    deferred.then ->
+      passed = true
+    setTimeout ->
+      assert false, "test not passed, #{t}" unless passed
+      redis.flushall()
+    , 500
+  else
+    redis.flushall()
+
+
+console.log(tests.length + " tests started")
 

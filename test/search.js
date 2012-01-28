@@ -1,8 +1,10 @@
-var Search, assert, redis, tests;
+var Search, assert, npromise, redis, tests;
 
 assert = require("assert");
 
 redis = require("redis").createClient();
+
+npromise = require("node-promise");
 
 Search = require("../app/js/search").Search;
 
@@ -59,10 +61,52 @@ tests = [
       assert.sameMembers(expected, keywords, "stores keywords");
       return testSearchCreated();
     });
+  }, function(promise) {
+    var matched, search, stored;
+    stored = false;
+    matched = false;
+    search = new Search(redis, {
+      query: function() {
+        return stored = true;
+      }
+    });
+    search.update({
+      id: 15,
+      changed: {
+        keywords: "foo"
+      }
+    });
+    search.on("match", function(id, tweet) {
+      return promise.resolve();
+    });
+    setTimeout(function() {
+      search.tweet({
+        text: "foo",
+        entities: {},
+        user: {}
+      });
+      return assert(stored, "stores in db");
+    }, 100);
+    return promise;
   }
 ];
 
 tests.forEach(function(t) {
-  redis.flushall();
-  return t();
+  var deferred, passed, promise;
+  promise = new npromise.Promise;
+  deferred = t(promise);
+  if (deferred.then) {
+    passed = false;
+    deferred.then(function() {
+      return passed = true;
+    });
+    return setTimeout(function() {
+      if (!passed) assert(false, "test not passed, " + t);
+      return redis.flushall();
+    }, 500);
+  } else {
+    return redis.flushall();
+  }
 });
+
+console.log(tests.length + " tests started");
