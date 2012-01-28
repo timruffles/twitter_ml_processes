@@ -1,36 +1,38 @@
-class SearchWorker extends require("events").EventEmitter
+text = require "./text"
+_ = require "underscore"
+class Search extends require("events").EventEmitter
   constructor: (@redis,@pg) ->
-    @updateKeywords()
   # rails:/app/models/search for format
   update: (event) ->
     search = @keywords2query event.changed.keywords
     searchKey = "searches:#{event.id}"
-    if existing = @redis.get searchKey
-      existing = JSON.parse(existing)
-      deleted = existing.filter (word) ->
-        search.or.indexOf(word) < 0
-      added = search.filter (word) ->
-        existing.or.indexOf(word) < 0
-      deleted.forEach (word) =>
-        @redis.srem "or_#{word}", event.id
-        @redis.hincrby "or_keywords", word, -1
-    else
-      added = search.or
-    @redis.set searchKey, JSON.stringify search
-    @redis.sadd "searches", event.id
-    added.forEach (word) =>
-      @redis.sadd "or_#{word}", event.id
-      @redis.hincrby "or_keywords", word, 1
-    @updateKeywords()
+    @redis.get searchKey, (err,existing) =>
+      if existing
+        existing = JSON.parse(existing)
+        deleted = existing.filter (word) ->
+          search.or.indexOf(word) < 0
+        added = search.filter (word) ->
+          existing.or.indexOf(word) < 0
+        deleted.forEach (word) =>
+          @redis.srem "or_#{word}", event.id
+          @redis.hincrby "or_keywords", word, -1
+      else
+        added = search.or
+      @redis.set searchKey, JSON.stringify search
+      @redis.sadd "searches", event.id
+      added.forEach (word) =>
+        @redis.sadd "or_#{word}", event.id
+        @redis.hincrby "or_keywords", word, 1
+      @updateKeywords()
   updateKeywords: ->
-    keywords = @redis.hgetall "or_keywords"
-    @emit "keywordsChanged", (keyword for own keyword, count of keywords when count > 0).join(" ")
+    @redis.hgetall "or_keywords", (err,keywords) =>
+      @emit "keywordsChanged", @makeKeywords(keywords)
+  makeKeywords: (keywords) ->
+    Object.keys(keywords)
   tweet: (tweet) ->
-    text = tweet.text
-    text = data.text.replace(/#;,.;/," ").replace("[^\d\w-]","")
-    words = tweet.split(" ")
+    text = text.tweetToKeywords tweet.text
     searchTweetEvents = this
-    words.forEach (word) ->
+    words.forEach (word) =>
       # or and and matches are stored in sets of searchIds who are listening
       @redis.smembers "or_#{word}", (searchIds) ->
         searchIds.forEach (id) ->
@@ -45,9 +47,7 @@ class SearchWorker extends require("events").EventEmitter
       or: []
       # TODO and support
     }
-    keywords.split(",").map (phrase) ->
-      words = phrase.split(" ")
-      query.or = words
+    query.or = text.textToKeywords keywords
     query
 
-module.exports = Streams
+module.exports.Search = Search
