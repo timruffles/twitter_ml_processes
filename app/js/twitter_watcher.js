@@ -1,4 +1,4 @@
-var TweetWatcher;
+var TweetWatcher, readUrl, tweetToString, url;
 var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
   for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
   function ctor() { this.constructor = child; }
@@ -7,6 +7,24 @@ var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, par
   child.__super__ = parent.prototype;
   return child;
 }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+url = require("url");
+readUrl = function(text) {
+  var data, _ref;
+  data = url.parse(text);
+  return [data.hostname, data.pathname.replace("/", " "), (_ref = data.query) != null ? _ref.replace(/&=/, " ") : void 0].join(" ");
+};
+tweetToString = function(tweet) {
+  var _ref, _ref2;
+  return [
+    tweet.text, tweet.in_reply_to_screen_name, tweet.user.name, tweet.user.description, (_ref = tweet.entities.urls) != null ? _ref.map(function(url) {
+      return readUrl(url.expanded_url || url.url);
+    }).join(" ") : void 0, (_ref2 = tweet.entities.media) != null ? _ref2.map(function(media) {
+      return readUrl(media.expanded_url || media.url);
+    }).join(" ") : void 0
+  ].map(function(text) {
+    return (text || "").toLowerCase();
+  }).join("");
+};
 TweetWatcher = (function() {
   __extends(TweetWatcher, require("events").EventEmitter);
   function TweetWatcher(twit) {
@@ -21,6 +39,7 @@ TweetWatcher = (function() {
     }, __bind(function(stream) {
       established(stream);
       stream.on("data", __bind(function(data) {
+        data.keywords = tweetToString(data);
         return twitterEvents.emit("tweet", data);
       }, this));
       stream.on("end", __bind(function() {
@@ -44,3 +63,4 @@ TweetWatcher = (function() {
   return TweetWatcher;
 })();
 exports.TweetWatcher = TweetWatcher;
+exports.tweetToString = tweetToString;

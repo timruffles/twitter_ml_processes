@@ -4,8 +4,8 @@ assert = require("assert");
 fs = require("fs");
 bayes = new brain.BayesianClassifier({
   thresholds: {
-    spam: 3,
-    notspam: 1
+    "prime-minister": 3,
+    "someone-else": 1
   },
   def: "prime-minister"
 });
@@ -31,6 +31,5 @@ classify = classify.split("\n");
 classify.forEach(function(line) {
   var category;
   category = bayes.classify(line);
-  console.log("Classified as: " + category);
-  return console.log(line);
+  return console.log("" + category + ": " + line);
 });

@@ -4,8 +4,8 @@ fs = require "fs"
 
 bayes = new brain.BayesianClassifier
   thresholds:
-    spam: 3 # higher threshold for spam
-    notspam: 1 # 1 is default threshold for all categories
+    "prime-minister": 3 # higher threshold for spam
+    "someone-else": 1 # 1 is default threshold for all categories
   def: "prime-minister" # category if can't classify
 
 
@@ -26,5 +26,4 @@ classify = fs.readFileSync "to_classify.txt", "utf8"
 classify = classify.split("\n")
 classify.forEach (line) ->
   category = bayes.classify line
-  console.log("Classified as: #{category}")
-  console.log line
+  console.log("#{category}: #{line}")

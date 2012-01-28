@@ -1,4 +1,4 @@
-var Search;
+var SearchWorker;
 var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
   for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
   function ctor() { this.constructor = child; }
@@ -6,17 +6,19 @@ var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, par
   child.prototype = new ctor;
   child.__super__ = parent.prototype;
   return child;
-};
-Search = (function() {
-  __extends(Search, require("events").EventEmitter);
-  function Search(redis, pg) {
+}, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+SearchWorker = (function() {
+  __extends(SearchWorker, require("events").EventEmitter);
+  function SearchWorker(redis, pg) {
     this.redis = redis;
     this.pg = pg;
+    this.updateKeywords();
   }
-  Search.prototype.update = function(event) {
-    var added, deleted, existing, search;
+  SearchWorker.prototype.update = function(event) {
+    var added, deleted, existing, search, searchKey;
     search = this.keywords2query(event.changed.keywords);
-    if (existing = this.redis.get("searches:" + event.id)) {
+    searchKey = "searches:" + event.id;
+    if (existing = this.redis.get(searchKey)) {
       existing = JSON.parse(existing);
       deleted = existing.filter(function(word) {
         return search.or.indexOf(word) < 0;
@@ -24,18 +26,38 @@ Search = (function() {
       added = search.filter(function(word) {
         return existing.or.indexOf(word) < 0;
       });
-      deleted.forEach(function(word) {
-        return this.redis.srem("or_" + word, event.id);
-      });
+      deleted.forEach(__bind(function(word) {
+        this.redis.srem("or_" + word, event.id);
+        return this.redis.hincrby("or_keywords", word, -1);
+      }, this));
     } else {
       added = search.or;
     }
-    this.redis.set("searches:" + event.id, JSON.stringify(search));
-    return added.forEach(function(word) {
-      return this.redis.sadd("or_" + word, event.id);
-    });
+    this.redis.set(searchKey, JSON.stringify(search));
+    this.redis.sadd("searches", event.id);
+    added.forEach(__bind(function(word) {
+      this.redis.sadd("or_" + word, event.id);
+      return this.redis.hincrby("or_keywords", word, 1);
+    }, this));
+    return this.updateKeywords();
   };
-  Search.prototype.tweet = function(tweet) {
+  SearchWorker.prototype.updateKeywords = function() {
+    var count, keyword, keywords;
+    keywords = this.redis.hgetall("or_keywords");
+    return this.emit("keywordsChanged", ((function() {
+      var _results;
+      _results = [];
+      for (keyword in keywords) {
+        if (!__hasProp.call(keywords, keyword)) continue;
+        count = keywords[keyword];
+        if (count > 0) {
+          _results.push(keyword);
+        }
+      }
+      return _results;
+    })()).join(" "));
+  };
+  SearchWorker.prototype.tweet = function(tweet) {
     var searchTweetEvents, text, words;
     text = tweet.text;
     text = data.text.replace(/#;,.;/, " ").replace("[^\d\w-]", "");
@@ -50,7 +72,7 @@ Search = (function() {
     });
     return this.pg.query("INSERT INTO tweets (id, tweet, created_at) values ($1, $2, $3)", [tweet.id, JSON.stringify(tweet), tweet.created_at]);
   };
-  Search.prototype.keywords2query = function(keywords) {
+  SearchWorker.prototype.keywords2query = function(keywords) {
     var query;
     query = {
       or: []
@@ -62,6 +84,6 @@ Search = (function() {
     });
     return query;
   };
-  return Search;
+  return SearchWorker;
 })();
 module.exports = Streams;
