@@ -1,4 +1,4 @@
-var classifier, events, modelUpdates, pg, pgClient, pubnunb, redis, redisClient, searches, sys, twit, twitter, twitterWatcher;
+var Classifier, Search, TwitterWatcher, classifier, events, pg, pgClient, pubnunb, redis, redisClient, searches, sys, twit, twitter, twitterWatcher;
 
 sys = require("sys");
 
@@ -21,11 +21,17 @@ twit = new twitter({
   consumer_secret: process.env.TWITTER_SECRET
 });
 
-searches = new require("search")(redisClient, pgClient);
+Search = require("./search").Search;
 
-classifier = new require("classifier")(pgClient);
+searches = new Search(redisClient, pgClient);
 
-twitterWatcher = new require("twitter_watcher")(twit);
+Classifier = require("./classifier").Classifier;
+
+classifier = new Classifier(pgClient);
+
+TwitterWatcher = require("./twitter_watcher").TwitterWatcher;
+
+twitterWatcher = new TwitterWatcher(twit);
 
 searches.on("keywordsChanged", function(keywords) {
   return twitterWatcher.connect(keywords);
@@ -49,10 +55,12 @@ classifier.on("classified", function(tweet, searchId, category) {
   });
 });
 
-modelUpdates = redisClient.subscribe("modelUpdates");
+redisClient.subscribe("modelUpdates");
 
-modelUpdates.on("message", function(channel, data) {
+redisClient.on("message", function(channel, data) {
   var message;
+  console.log("msg on " + channel);
+  if (channel !== "modelUpdates") return;
   message = JSON.parse(data);
   switch (message.type) {
     case "Search":

@@ -1,4 +1,4 @@
-text = require "text"
+text = require "./text"
 
 class TweetWatcher extends require("events").EventEmitter
   constructor: (@twit) ->
@@ -8,7 +8,6 @@ class TweetWatcher extends require("events").EventEmitter
     @twit.stream "statuses/filter", {track:keywords}, (stream) =>
       established(stream)
       stream.on "data", (data) =>
-        data.keywords = tweetToString data
         twitterEvents.emit("tweet",data)
       stream.on "end", =>
         @connect(keywords)
@@ -24,5 +23,4 @@ class TweetWatcher extends require("events").EventEmitter
         @stream.destroy()
       @stream = newStream
 
-exports.TweetWatcher = TweetWatcher
-exports.tweetToString = tweetToString
+exports.TwitterWatcher = TweetWatcher

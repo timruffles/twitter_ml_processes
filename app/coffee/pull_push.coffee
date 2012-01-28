@@ -13,9 +13,12 @@ twit = new twitter
   consumer_key: process.env.TWITTER_KEY
   consumer_secret: process.env.TWITTER_SECRET
 
-searches = new require("search")(redisClient,pgClient)
-classifier = new require("classifier")(pgClient)
-twitterWatcher = new require("twitter_watcher")(twit)
+Search = require("./search").Search
+searches = new Search(redisClient,pgClient)
+Classifier = require("./classifier").Classifier
+classifier = new Classifier(pgClient)
+TwitterWatcher = require("./twitter_watcher").TwitterWatcher
+twitterWatcher = new TwitterWatcher(twit)
 
 # start watching twitter for our keywords, updating whenever they change
 searches.on "keywordsChanged", (keywords) ->
@@ -38,8 +41,10 @@ classifier.on "classified", (tweet,searchId,category) ->
       tweet: tweet
 
 # we listen here for any modifications to our models
-modelUpdates = redisClient.subscribe "modelUpdates"
-modelUpdates.on "message", (channel,data) ->
+redisClient.subscribe "modelUpdates"
+redisClient.on "message", (channel,data) ->
+  console.log "msg on #{channel}"
+  return unless channel == "modelUpdates"
   message = JSON.parse(data)
   switch message.type
     when "Search"

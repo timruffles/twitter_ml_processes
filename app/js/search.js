@@ -24,10 +24,10 @@ Search = (function(_super) {
       var added, deleted;
       if (existing) {
         existing = JSON.parse(existing);
-        deleted = existing.filter(function(word) {
+        deleted = existing.or.filter(function(word) {
           return search.or.indexOf(word) < 0;
         });
-        added = search.filter(function(word) {
+        added = search.or.filter(function(word) {
           return existing.or.indexOf(word) < 0;
         });
         deleted.forEach(function(word) {
@@ -59,12 +59,12 @@ Search = (function(_super) {
   };
 
   Search.prototype.tweet = function(tweet) {
-    var searchTweetEvents,
+    var searchTweetEvents, words,
       _this = this;
-    text = text.tweetToKeywords(tweet.text);
+    words = text.tweetToKeywords(tweet);
     searchTweetEvents = this;
     words.forEach(function(word) {
-      return _this.redis.smembers("or_" + word, function(searchIds) {
+      return _this.redis.smembers("or_" + word, function(err, searchIds) {
         return searchIds.forEach(function(id) {
           return searchTweetEvents.emit("match", id, tweet);
         });

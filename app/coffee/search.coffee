@@ -9,9 +9,9 @@ class Search extends require("events").EventEmitter
     @redis.get searchKey, (err,existing) =>
       if existing
         existing = JSON.parse(existing)
-        deleted = existing.filter (word) ->
+        deleted = existing.or.filter (word) ->
           search.or.indexOf(word) < 0
-        added = search.filter (word) ->
+        added = search.or.filter (word) ->
           existing.or.indexOf(word) < 0
         deleted.forEach (word) =>
           @redis.srem "or_#{word}", event.id
@@ -30,11 +30,11 @@ class Search extends require("events").EventEmitter
   makeKeywords: (keywords) ->
     Object.keys(keywords)
   tweet: (tweet) ->
-    text = text.tweetToKeywords tweet.text
+    words = text.tweetToKeywords tweet
     searchTweetEvents = this
     words.forEach (word) =>
       # or and and matches are stored in sets of searchIds who are listening
-      @redis.smembers "or_#{word}", (searchIds) ->
+      @redis.smembers "or_#{word}", (err,searchIds) ->
         searchIds.forEach (id) ->
           searchTweetEvents.emit "match", id, tweet
       # TODO support and queries - should be reasonably simple as it's AND_WORDS * O(1) lookups

@@ -2,7 +2,7 @@ var TweetWatcher, text,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
-text = require("text");
+text = require("./text");
 
 TweetWatcher = (function(_super) {
 
@@ -22,7 +22,6 @@ TweetWatcher = (function(_super) {
     }, function(stream) {
       established(stream);
       stream.on("data", function(data) {
-        data.keywords = tweetToString(data);
         return twitterEvents.emit("tweet", data);
       });
       stream.on("end", function() {
@@ -50,6 +49,4 @@ TweetWatcher = (function(_super) {
 
 })(require("events").EventEmitter);
 
-exports.TweetWatcher = TweetWatcher;
-
-exports.tweetToString = tweetToString;
+exports.TwitterWatcher = TweetWatcher;
