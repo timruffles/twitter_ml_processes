@@ -2,30 +2,29 @@ text = require "./text"
 logger = require "./logger"
 
 class TweetWatcher extends require("events").EventEmitter
-  constructor: (@twit) ->
+  constructor: (@twit,@redis) ->
     this
   makeStream: (keywords, established) ->
     twitterEvents = this
     return if keywords.length == 0
-    @twit.stream "statuses/filter", {track:keywords.join(",")}, (stream) =>
+    @twit.stream "statuses/filter", {track:keywords.map((k) -> encodeURIComponent(k)).join(",")}, (stream) =>
       logger.log "Connection established, tracking #{keywords.length} keywords"
-      timeout = +new Date + 15000
-      timer = =>
-        setTimeout (=>
-          if +new Date >= timeout
-            logger.log "timeout, reconnecting"
-            @connect keywords
-          else
-            timer()
-        ), 18000
-      timer()
       established(stream)
       stream.on "data", (data) =>
-        timeout += 5000
-        logger.log "Tweet received, #{data.id}, #{data.text}"
-        twitterEvents.emit("tweet",data)
-      stream.on "end", =>
+        logger.debug "Tweet received, #{data.id}, #{data.text}"
+        @redis.sismember "tweet_ids_received", (e,isMember) =>
+          unless isMember
+            @redis.sadd "tweet_ids_received", data.id
+            twitterEvents.emit("tweet",data)
+          else
+            logger.info "Duplicate tweet, #{data.id}, ignored"
+      stream.on "end", (evt) =>
         logger.log "Tweet stream ended"
+        logger.log evt
+        @connect(keywords)
+      stream.on "error", (evt) =>
+        logger.log "ERROR"
+        logger.log arguments
         @connect(keywords)
       stream.on "destroy", =>
         logger.log "Tweet stream destroyed"

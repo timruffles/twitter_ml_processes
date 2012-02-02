@@ -2,6 +2,7 @@ brain = require("brain")
 pubnub = require("pubnub")
 stemmer = require("../js/stemmer").stemmer
 text = require("../js/text")
+logger = require("./logger")
 # ## User updates
 Classifier = class Classifier extends require("events").EventEmitter
 
@@ -12,7 +13,7 @@ Classifier = class Classifier extends require("events").EventEmitter
   getBayes: (searchId) ->
     new brain.BayesianClassifier
       backend :
-        type: 'memory'
+        type: 'redis'
         options:
           hostname: 'localhost'
           port: 6379
@@ -32,10 +33,11 @@ Classifier = class Classifier extends require("events").EventEmitter
     console.log("train on ",@classificationString(tweet))
     @getBayes(searchId).train(@classificationString(tweet),category)
 
-  classify: (tweet,searchId) ->
+  classify: (searchId, tweet) ->
     classifiedEvents = this
     pg = @pg
     @getBayes(searchId).classify @classificationString(tweet), (category) ->
+      logger.info "classified #{tweet.id} as #{category}"
       tweet.category = category
       classifiedEvents.emit "classified", tweet, searchId, category
       # store the tweet's classification for if user isn't online right now

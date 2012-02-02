@@ -41,7 +41,7 @@ class Search extends require("events").EventEmitter
       # users.withAndWords.each (user) ->
       #   if user.words.every (word) -> tweetWords[word]
       #     searchTweetEvents.emit "match", id, tweet
-    @pg.query "INSERT INTO tweets (id, tweet, created_at) values ($1, $2, $3)", [tweet.id, JSON.stringify(tweet), tweet.created_at]
+    @pg.query "INSERT INTO tweets (id, tweet, created_at, updated_at) values ($1, $2, $3, $4)", [tweet.id, JSON.stringify(tweet), new Date(Date.parse(tweet.created_at)),new Date]
   keywords2query: (keywords) ->
     query = {
       or: []

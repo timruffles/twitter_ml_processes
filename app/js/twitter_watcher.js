@@ -10,8 +10,9 @@ TweetWatcher = (function(_super) {
 
   __extends(TweetWatcher, _super);
 
-  function TweetWatcher(twit) {
+  function TweetWatcher(twit, redis) {
     this.twit = twit;
+    this.redis = redis;
     this;
   }
 
@@ -21,30 +22,31 @@ TweetWatcher = (function(_super) {
     twitterEvents = this;
     if (keywords.length === 0) return;
     return this.twit.stream("statuses/filter", {
-      track: keywords.join(",")
+      track: keywords.map(function(k) {
+        return encodeURIComponent(k);
+      }).join(",")
     }, function(stream) {
-      var timeout, timer;
       logger.log("Connection established, tracking " + keywords.length + " keywords");
-      timeout = +(new Date) + 15000;
-      timer = function() {
-        return setTimeout((function() {
-          if (+(new Date) >= timeout) {
-            logger.log("timeout, reconnecting");
-            return _this.connect(keywords);
-          } else {
-            return timer();
-          }
-        }), 18000);
-      };
-      timer();
       established(stream);
       stream.on("data", function(data) {
-        timeout += 5000;
-        logger.log("Tweet received, " + data.id + ", " + data.text);
-        return twitterEvents.emit("tweet", data);
+        logger.debug("Tweet received, " + data.id + ", " + data.text);
+        return _this.redis.sismember("tweet_ids_received", function(e, isMember) {
+          if (!isMember) {
+            _this.redis.sadd("tweet_ids_received", data.id);
+            return twitterEvents.emit("tweet", data);
+          } else {
+            return logger.info("Duplicate tweet, " + data.id + ", ignored");
+          }
+        });
       });
-      stream.on("end", function() {
+      stream.on("end", function(evt) {
         logger.log("Tweet stream ended");
+        logger.log(evt);
+        return _this.connect(keywords);
+      });
+      stream.on("error", function(evt) {
+        logger.log("ERROR");
+        logger.log(arguments);
         return _this.connect(keywords);
       });
       return stream.on("destroy", function() {

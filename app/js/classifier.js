@@ -1,4 +1,4 @@
-var Classifier, brain, pubnub, stemmer, text,
+var Classifier, brain, logger, pubnub, stemmer, text,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
@@ -9,6 +9,8 @@ pubnub = require("pubnub");
 stemmer = require("../js/stemmer").stemmer;
 
 text = require("../js/text");
+
+logger = require("./logger");
 
 Classifier = Classifier = (function(_super) {
   var BORING, INTERESTING;
@@ -26,7 +28,7 @@ Classifier = Classifier = (function(_super) {
   Classifier.prototype.getBayes = function(searchId) {
     return new brain.BayesianClassifier({
       backend: {
-        type: 'memory',
+        type: 'redis',
         options: {
           hostname: 'localhost',
           port: 6379,
@@ -52,11 +54,12 @@ Classifier = Classifier = (function(_super) {
     return this.getBayes(searchId).train(this.classificationString(tweet), category);
   };
 
-  Classifier.prototype.classify = function(tweet, searchId) {
+  Classifier.prototype.classify = function(searchId, tweet) {
     var classifiedEvents, pg;
     classifiedEvents = this;
     pg = this.pg;
     return this.getBayes(searchId).classify(this.classificationString(tweet), function(category) {
+      logger.info("classified " + tweet.id + " as " + category);
       tweet.category = category;
       classifiedEvents.emit("classified", tweet, searchId, category);
       return pg.query("INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]);

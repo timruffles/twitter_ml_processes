@@ -70,7 +70,7 @@ Search = (function(_super) {
         });
       });
     });
-    return this.pg.query("INSERT INTO tweets (id, tweet, created_at) values ($1, $2, $3)", [tweet.id, JSON.stringify(tweet), tweet.created_at]);
+    return this.pg.query("INSERT INTO tweets (id, tweet, created_at, updated_at) values ($1, $2, $3, $4)", [tweet.id, JSON.stringify(tweet), new Date(Date.parse(tweet.created_at)), new Date]);
   };
 
   Search.prototype.keywords2query = function(keywords) {
