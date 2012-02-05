@@ -5,8 +5,8 @@ redis = require("redis")
 redisClient = redis.createClient()
 events = require('events')
 pubnub = require("pubnub").init
-  publish_key: env.PUBNUB_PUB_KEY
-  subscribe_key: env.PUBNUB_SUB_KEY
+  publish_key: env.PN_PUB
+  subscribe_key: env.PN_SUB
 logger = require("./logger")
 
 
@@ -16,10 +16,10 @@ pgClient.connect()
 
 twitter = require("ntwitter")
 twit = new twitter twitter_conf = 
-  consumer_key: env.TWITTER_KEY
-  consumer_secret: env.TWITTER_SECRET
-  access_token_key: env.ACCESS_TOKEN
-  access_token_secret: env.ACCESS_SECRET
+  consumer_key: env.TW_KEY
+  consumer_secret: env.TW_SECRET
+  access_token_key: env.TW_ACCESS_TOKEN
+  access_token_secret: env.TW_ACCESS_SECRET
 console.log twitter_conf
 
 Search = require("./search").Search
@@ -48,7 +48,7 @@ twitterWatcher.on "tweet", (tweet) ->
 searches.on "match", (searchId,tweet) ->
   logger.log "tweet matches search #{searchId}, #{tweet.id}"
   classifier.classify searchId, tweet
-searchs.on "preTrainingMatch", (searchId,tweet) ->
+searches.on "preTrainingMatch", (searchId,tweet) ->
   logger.log "training data to send to search #{searchId}, #{tweet.id}"
   classifier.classifyAs searchId, tweet, Classifier.INTERESTING
 

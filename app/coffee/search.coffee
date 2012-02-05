@@ -14,7 +14,7 @@ class Search extends require("events").EventEmitter
     @redis.hget "searches", searchId, (err,existing) =>
       if existing
         existing = JSON.parse(existing)
-        @keywordsDeleted existing.or.filter (word) ->
+        @keywordsRemoved existing.or.filter (word) ->
           search.or.indexOf(word) < 0
         , searchId
         added = search.or.filter (word) ->

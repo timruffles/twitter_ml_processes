@@ -1,10 +1,8 @@
-var Classifier, brain, logger, pubnub, stemmer, text,
+var Classifier, brain, logger, stemmer, text,
   __hasProp = Object.prototype.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
 brain = require("brain");
-
-pubnub = require("pubnub");
 
 stemmer = require("../js/stemmer").stemmer;
 
@@ -64,6 +62,11 @@ Classifier = Classifier = (function(_super) {
       classifiedEvents.emit("classified", tweet, searchId, category);
       return pg.query("INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]);
     });
+  };
+
+  Classifier.prototype.classifyAs = function(searchId, tweet, category) {
+    this.pg.query("INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]);
+    return this.emit("classified", tweet, searchId, category);
   };
 
   return Classifier;

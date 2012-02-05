@@ -11,8 +11,8 @@ redisClient = redis.createClient();
 events = require('events');
 
 pubnub = require("pubnub").init({
-  publish_key: env.PUBNUB_PUB_KEY,
-  subscribe_key: env.PUBNUB_SUB_KEY
+  publish_key: env.PN_PUB,
+  subscribe_key: env.PN_SUB
 });
 
 logger = require("./logger");
@@ -26,17 +26,17 @@ pgClient.connect();
 twitter = require("ntwitter");
 
 twit = new twitter(twitter_conf = {
-  consumer_key: env.TWITTER_KEY,
-  consumer_secret: env.TWITTER_SECRET,
-  access_token_key: env.ACCESS_TOKEN,
-  access_token_secret: env.ACCESS_SECRET
+  consumer_key: env.TW_KEY,
+  consumer_secret: env.TW_SECRET,
+  access_token_key: env.TW_ACCESS_TOKEN,
+  access_token_secret: env.TW_ACCESS_SECRET
 });
 
 console.log(twitter_conf);
 
 Search = require("./search").Search;
 
-searches = new Search(redisClient, pgClient);
+searches = new Search(redisClient, pgClient, twit);
 
 Classifier = require("./classifier").Classifier;
 
@@ -72,13 +72,27 @@ searches.on("match", function(searchId, tweet) {
   return classifier.classify(searchId, tweet);
 });
 
+searches.on("preTrainingMatch", function(searchId, tweet) {
+  logger.log("training data to send to search " + searchId + ", " + tweet.id);
+  return classifier.classifyAs(searchId, tweet, Classifier.INTERESTING);
+});
+
 classifier.on("classified", function(tweet, searchId, category) {
+  var forPubnub;
   logger.log("tweet classified " + searchId + ", " + tweet.id + " " + category);
   if (category !== Classifier.INTERESTING) return;
+  forPubnub = {};
+  ["coordinates", "created_at", "in_reply_to_user_id_str", "id_str", "in_reply_to_status_id_str", "retweet_count", "text"].forEach(function(key) {
+    return forPubnub[key] = tweet[key];
+  });
+  forPubnub.user = {};
+  ["id_str", "name", "screen_name", "profile_image_url_https"].forEach(function(key) {
+    return forPubnub.user[key] = tweet.user[key];
+  });
   return pubnub.publish({
     channel: "search:" + searchId + ":tweets:add",
     message: {
-      tweet: tweet
+      tweet: forPubnub
     }
   });
 });
@@ -94,10 +108,20 @@ updator.on("message", function(channel, data) {
   message = JSON.parse(data);
   switch (message.type) {
     case "Search":
-      logger.log("search updated, " + message.id);
-      return searches.update(message);
+      switch (message.callback) {
+        case "after_create":
+          logger.log("search created, " + message.id);
+          return searches.create(message.id, message.keywords);
+        case "after_save":
+          logger.log("search updated, " + message.id);
+          return searches.update(message.id, message.keywords);
+        case "after_destroy":
+          logger.log("search destroyed, " + message.id);
+          return searches.destroy(message.id, message.keywords);
+      }
+      break;
     case "ClassifiedTweet":
-      logger.log("searcords changed, 'foo bar baz'h trained, " + message.searchId + " " + message.tweetId + " " + message.category);
+      logger.log("search changed, trained, " + message.searchId + " " + message.tweetId + " " + message.category);
       return classifier.train("train", message.searchId, message.tweet, message.category);
   }
 });

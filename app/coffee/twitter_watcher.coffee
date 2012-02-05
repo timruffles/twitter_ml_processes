@@ -20,7 +20,8 @@ class TweetWatcher extends require("events").EventEmitter
             logger.info "Duplicate tweet, #{data.id}, ignored"
       stream.on "end", (evt) =>
         logger.log "Tweet stream ended"
-        logger.log evt
+        logger.log evt.statusCode
+        logger.log "Is the system clock set correctly? #{new Date().toString()} OAuth can fail if it's not" if evt.statusCode == 401
         @connect(keywords)
       stream.on "error", (evt) =>
         logger.log "ERROR"

@@ -41,7 +41,10 @@ TweetWatcher = (function(_super) {
       });
       stream.on("end", function(evt) {
         logger.log("Tweet stream ended");
-        logger.log(evt);
+        logger.log(evt.statusCode);
+        if (evt.statusCode === 401) {
+          logger.log("Is the system clock set correctly? " + (new Date().toString()) + " OAuth can fail if it's not");
+        }
         return _this.connect(keywords);
       });
       stream.on("error", function(evt) {

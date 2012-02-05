@@ -10,52 +10,79 @@ Search = (function(_super) {
 
   __extends(Search, _super);
 
-  function Search(redis, pg) {
+  function Search(redis, pg, twitter) {
     this.redis = redis;
     this.pg = pg;
+    this.twitter = twitter;
   }
 
-  Search.prototype.update = function(event) {
-    var search, searchKey,
+  Search.prototype.create = function(searchId, keywords) {
+    var _this = this;
+    this.update(searchId, keywords);
+    return this.twitter.search(keywords.join(", "), {
+      include_entities: "t"
+    }, function(err, tweets) {
+      return tweets.forEach(function(tweet) {
+        return _this.emit("preTrainingMatch", tweet.id, tweet);
+      });
+    });
+  };
+
+  Search.prototype.update = function(searchId, keywords) {
+    var search,
       _this = this;
-    search = this.keywords2query(event.changed.keywords);
-    searchKey = "searches:" + event.id;
-    return this.redis.get(searchKey, function(err, existing) {
-      var added, deleted;
+    search = this.keywords2query(keywords);
+    return this.redis.hget("searches", searchId, function(err, existing) {
+      var added;
       if (existing) {
         existing = JSON.parse(existing);
-        deleted = existing.or.filter(function(word) {
+        _this.keywordsRemoved(existing.or.filter(function(word) {
           return search.or.indexOf(word) < 0;
-        });
+        }, searchId));
         added = search.or.filter(function(word) {
           return existing.or.indexOf(word) < 0;
-        });
-        deleted.forEach(function(word) {
-          _this.redis.srem("or_" + word, event.id);
-          return _this.redis.hincrby("or_keywords", word, -1);
         });
       } else {
         added = search.or;
       }
-      _this.redis.set(searchKey, JSON.stringify(search));
-      _this.redis.sadd("searches", event.id);
-      added.forEach(function(word) {
-        _this.redis.sadd("or_" + word, event.id);
-        return _this.redis.hincrby("or_keywords", word, 1);
-      });
+      _this.redis.hset("searches", searchId, JSON.stringify(search));
+      _this.keywordsAdded(added, searchId);
       return _this.updateKeywords();
     });
   };
 
+  Search.prototype.destroy = function(searchId, keywords) {
+    var search;
+    search = this.keywords2query(keywords);
+    this.keywordsRemoved(search.or, searchId);
+    return this.redis.hdel("searches", searchId);
+  };
+
   Search.prototype.updateKeywords = function() {
     var _this = this;
-    return this.redis.hgetall("or_keywords", function(err, keywords) {
-      return _this.emit("keywordsChanged", _this.makeKeywords(keywords));
+    return this.redis.hgetall("or_keywords", function(err, keywordHash) {
+      var keywords;
+      keywords = Object.keys(keywordHash).filter(function(key) {
+        return parseInt(keywordHash[key]) > 0;
+      });
+      return _this.emit("keywordsChanged", keywords);
     });
   };
 
-  Search.prototype.makeKeywords = function(keywords) {
-    return Object.keys(keywords);
+  Search.prototype.keywordsRemoved = function(keywords, searchId) {
+    var _this = this;
+    return keywords.forEach(function(word) {
+      _this.redis.srem("or_" + word, searchId);
+      return _this.redis.hincrby("or_keywords", word, -1);
+    });
+  };
+
+  Search.prototype.keywordsAdded = function(keywords, searchId) {
+    var _this = this;
+    return keywords.forEach(function(word) {
+      _this.redis.sadd("or_" + word, searchId);
+      return _this.redis.hincrby("or_keywords", word, 1);
+    });
   };
 
   Search.prototype.tweet = function(tweet) {
