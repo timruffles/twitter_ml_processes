@@ -1,5 +1,4 @@
 brain = require("brain")
-pubnub = require("pubnub")
 stemmer = require("../js/stemmer").stemmer
 text = require("../js/text")
 logger = require("./logger")
@@ -42,5 +41,8 @@ Classifier = class Classifier extends require("events").EventEmitter
       classifiedEvents.emit "classified", tweet, searchId, category
       # store the tweet's classification for if user isn't online right now
       pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
+  classifyAs: (searchId,tweet,category) ->
+    @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
+    @emit "classified", tweet, searchId, category
 
 module.exports.Classifier = Classifier

@@ -1,34 +1,46 @@
 text = require "./text"
 _ = require "underscore"
 class Search extends require("events").EventEmitter
-  constructor: (@redis,@pg) ->
+  constructor: (@redis,@pg,@twitter) ->
+  create: (searchId,keywords) ->
+    @update searchId, keywords
+    @twitter.search keywords.join(", "), include_entities: "t", (err,tweets) =>
+      tweets.forEach (tweet) =>
+        @emit "preTrainingMatch", tweet.id, tweet
+
   # rails:/app/models/search for format
-  update: (event) ->
-    search = @keywords2query event.changed.keywords
-    searchKey = "searches:#{event.id}"
-    @redis.get searchKey, (err,existing) =>
+  update: (searchId,keywords) ->
+    search = @keywords2query keywords
+    @redis.hget "searches", searchId, (err,existing) =>
       if existing
         existing = JSON.parse(existing)
-        deleted = existing.or.filter (word) ->
+        @keywordsDeleted existing.or.filter (word) ->
           search.or.indexOf(word) < 0
+        , searchId
         added = search.or.filter (word) ->
           existing.or.indexOf(word) < 0
-        deleted.forEach (word) =>
-          @redis.srem "or_#{word}", event.id
-          @redis.hincrby "or_keywords", word, -1
       else
         added = search.or
-      @redis.set searchKey, JSON.stringify search
-      @redis.sadd "searches", event.id
-      added.forEach (word) =>
-        @redis.sadd "or_#{word}", event.id
-        @redis.hincrby "or_keywords", word, 1
+      @redis.hset "searches", searchId, JSON.stringify search
+      @keywordsAdded added, searchId
       @updateKeywords()
+  destroy: (searchId,keywords) ->
+    search = @keywords2query keywords
+    @keywordsRemoved search.or, searchId
+    @redis.hdel "searches", searchId
   updateKeywords: ->
-    @redis.hgetall "or_keywords", (err,keywords) =>
-      @emit "keywordsChanged", @makeKeywords(keywords)
-  makeKeywords: (keywords) ->
-    Object.keys(keywords)
+    @redis.hgetall "or_keywords", (err,keywordHash) =>
+      keywords = Object.keys(keywordHash).filter (key) ->
+        parseInt(keywordHash[key]) > 0
+      @emit "keywordsChanged", keywords
+  keywordsRemoved: (keywords,searchId) ->
+    keywords.forEach (word) =>
+      @redis.srem "or_#{word}", searchId
+      @redis.hincrby "or_keywords", word, -1
+  keywordsAdded: (keywords,searchId) ->
+    keywords.forEach (word) =>
+      @redis.sadd "or_#{word}", searchId
+      @redis.hincrby "or_keywords", word, 1
   tweet: (tweet) ->
     words = text.tweetToKeywords tweet
     searchTweetEvents = this

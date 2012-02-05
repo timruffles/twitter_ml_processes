@@ -23,7 +23,7 @@ twit = new twitter twitter_conf =
 console.log twitter_conf
 
 Search = require("./search").Search
-searches = new Search(redisClient,pgClient)
+searches = new Search(redisClient,pgClient,twit)
 Classifier = require("./classifier").Classifier
 classifier = new Classifier(pgClient)
 TwitterWatcher = require("./twitter_watcher").TwitterWatcher
@@ -48,16 +48,38 @@ twitterWatcher.on "tweet", (tweet) ->
 searches.on "match", (searchId,tweet) ->
   logger.log "tweet matches search #{searchId}, #{tweet.id}"
   classifier.classify searchId, tweet
+searchs.on "preTrainingMatch", (searchId,tweet) ->
+  logger.log "training data to send to search #{searchId}, #{tweet.id}"
+  classifier.classifyAs searchId, tweet, Classifier.INTERESTING
 
 # if a tweet is classified as interesting, publish it in case the user is online
 classifier.on "classified", (tweet,searchId,category) ->
   logger.log "tweet classified #{searchId}, #{tweet.id} #{category}"
   return unless category == Classifier.INTERESTING
   # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
+  forPubnub = {}
+  [
+    "coordinates"
+    "created_at"
+    "in_reply_to_user_id_str"
+    "id_str"
+    "in_reply_to_status_id_str"
+    "retweet_count"
+    "text"
+  ].forEach (key) ->
+    forPubnub[key] = tweet[key]
+  forPubnub.user = {}
+  [
+    "id_str"
+    "name"
+    "screen_name"
+    "profile_image_url_https"
+  ].forEach (key) ->
+    forPubnub.user[key] = tweet.user[key]
   pubnub.publish
     channel : "search:#{searchId}:tweets:add"
     message :
-      tweet: tweet
+      tweet: forPubnub
 
 # we listen here for any modifications to our models
 updator = redis.createClient()
@@ -68,10 +90,18 @@ updator.on "message", (channel,data) ->
   message = JSON.parse(data)
   switch message.type
     when "Search"
-      logger.log "search updated, #{message.id}"
-      searches.update(message)
+      switch message.callback
+        when "after_create"
+          logger.log "search created, #{message.id}"
+          searches.create(message.id,message.keywords)
+        when "after_save"
+          logger.log "search updated, #{message.id}"
+          searches.update(message.id,message.keywords)
+        when "after_destroy"
+          logger.log "search destroyed, #{message.id}"
+          searches.destroy(message.id,message.keywords)
     when "ClassifiedTweet"
-      logger.log "searcords changed, 'foo bar baz'h trained, #{message.searchId} #{message.tweetId} #{message.category}"
+      logger.log "search changed, trained, #{message.searchId} #{message.tweetId} #{message.category}"
       classifier.train "train", message.searchId, message.tweet, message.category
 
 module.exports = {}
