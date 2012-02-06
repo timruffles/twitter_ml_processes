@@ -7,6 +7,7 @@ Classifier = class Classifier extends require("events").EventEmitter
 
   this.INTERESTING = INTERESTING = "interesting"
   this.BORING = BORING = "boring"
+  this.UNSEEN = UNSEEN = "unseen"
 
   constructor: (@pg) ->
   getBayes: (searchId) ->
@@ -23,7 +24,6 @@ Classifier = class Classifier extends require("events").EventEmitter
       def: INTERESTING # category if can't classify
 
   classificationString: (tweet) ->
-    # for now, let's simply classify like this
     text.tweetToKeywords(tweet).map((word) ->
       stemmer(word)
     ).join(" ")
@@ -36,13 +36,13 @@ Classifier = class Classifier extends require("events").EventEmitter
     classifiedEvents = this
     pg = @pg
     @getBayes(searchId).classify @classificationString(tweet), (category) ->
-      logger.info "classified #{tweet.id} as #{category}"
+      logger.debug "classified #{tweet.id} as #{category}"
       tweet.category = category
-      classifiedEvents.emit "classified", tweet, searchId, category
+      classifiedEvents.emit "classified", searchId, tweet, category
       # store the tweet's classification for if user isn't online right now
       pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
   classifyAs: (searchId,tweet,category) ->
     @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
-    @emit "classified", tweet, searchId, category
+    @emit "classified", searchId, tweet, category
 
 module.exports.Classifier = Classifier

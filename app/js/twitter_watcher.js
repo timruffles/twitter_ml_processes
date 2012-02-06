@@ -26,16 +26,17 @@ TweetWatcher = (function(_super) {
         return encodeURIComponent(k);
       }).join(",")
     }, function(stream) {
-      logger.log("Connection established, tracking " + keywords.length + " keywords");
+      logger.info("Connection established, tracking " + keywords.length + " keywords");
       established(stream);
       stream.on("data", function(data) {
-        logger.debug("Tweet received, " + data.id + ", " + data.text);
+        logger.log("Tweet received, " + data.id + ", " + data.id_str + " " + data.text);
+        data.id = data.id_str;
         return _this.redis.sismember("tweet_ids_received", function(e, isMember) {
-          if (!isMember) {
+          if (isMember) {
+            return logger.info("Duplicate tweet, " + data.id + ", ignored");
+          } else {
             _this.redis.sadd("tweet_ids_received", data.id);
             return twitterEvents.emit("tweet", data);
-          } else {
-            return logger.info("Duplicate tweet, " + data.id + ", ignored");
           }
         });
       });
@@ -43,18 +44,16 @@ TweetWatcher = (function(_super) {
         logger.log("Tweet stream ended");
         logger.log(evt.statusCode);
         if (evt.statusCode === 401) {
-          logger.log("Is the system clock set correctly? " + (new Date().toString()) + " OAuth can fail if it's not");
+          return logger.log("Is the system clock set correctly? " + (new Date().toString()) + " OAuth can fail if it's not");
         }
-        return _this.connect(keywords);
       });
       stream.on("error", function(evt) {
         logger.log("ERROR");
-        logger.log(arguments);
-        return _this.connect(keywords);
+        return logger.log(arguments);
       });
       return stream.on("destroy", function() {
         logger.log("Tweet stream destroyed");
-        return _this.connect(keywords);
+        return logger.log(arguments);
       });
     });
   };

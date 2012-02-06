@@ -1,26 +1,32 @@
 url = require("url")
 _ = require("underscore")
 stemmer = require("../js/stemmer").stemmer
+Iconv = require("iconv").Iconv
 
 trailingWS = /^\s+|\s+$/
-separators = /[,;\-\.!?\(\)\{\}\[\]"&:*]/g
+separators = /[,;_\-\.!?\(\)\{\}\[\]"&:*]/g
 quotes = /\B["']\b|\b["']\B/
 twitterCommands = /[#@]/g
 possessives = /'s/g
 
 module.exports = text =
   textToTrimmedWords: (phrase = "") ->
+    phrase.split(" ").map((word) ->
+            word.replace(trailingWS,"")
+           ).filter (word) ->
+            !/^\s*$/.test word
+  normaliseWords: (phrase = "") ->
     phrase.toLowerCase()
           .replace(separators," ")
           .replace(quotes,"")
-          .split(" ").map((word) ->
-      word.replace(trailingWS,"")
-    ).filter (word) ->
-      !/^\s*$/.test word
+          .replace(possessives,"")
   twitterTextToKeywords: (phrase = "") ->
-    text.textToTrimmedWords text.removeTwitterCommands phrase.replace(possessives,"")
+    text.textToTrimmedWords text.removeTwitterCommands text.normaliseWords phrase
   textToKeywords: (phrase) ->
     @textToTrimmedWords(phrase)
+  textToPhrases: (string) ->
+    string.split(",").map (phrase) ->
+      text.textToTrimmedWords phrase
   removeTwitterCommands: (text) ->
     text.replace(twitterCommands," ")
   readUrl: (text) ->
@@ -46,4 +52,7 @@ module.exports = text =
     ].map((phrase) ->
       text.twitterTextToKeywords(phrase)
     ))
+  transliterateToUtfBmp: (string) ->
+    new Iconv("UTF-16","UTF-8//TRANSLIT").convert(new Iconv("UTF-8","UTF-16").convert(string)).toString("UTF-8")
+
 

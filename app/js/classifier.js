@@ -11,13 +11,15 @@ text = require("../js/text");
 logger = require("./logger");
 
 Classifier = Classifier = (function(_super) {
-  var BORING, INTERESTING;
+  var BORING, INTERESTING, UNSEEN;
 
   __extends(Classifier, _super);
 
   Classifier.INTERESTING = INTERESTING = "interesting";
 
   Classifier.BORING = BORING = "boring";
+
+  Classifier.UNSEEN = UNSEEN = "unseen";
 
   function Classifier(pg) {
     this.pg = pg;
@@ -57,16 +59,16 @@ Classifier = Classifier = (function(_super) {
     classifiedEvents = this;
     pg = this.pg;
     return this.getBayes(searchId).classify(this.classificationString(tweet), function(category) {
-      logger.info("classified " + tweet.id + " as " + category);
+      logger.debug("classified " + tweet.id + " as " + category);
       tweet.category = category;
-      classifiedEvents.emit("classified", tweet, searchId, category);
+      classifiedEvents.emit("classified", searchId, tweet, category);
       return pg.query("INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]);
     });
   };
 
   Classifier.prototype.classifyAs = function(searchId, tweet, category) {
     this.pg.query("INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]);
-    return this.emit("classified", tweet, searchId, category);
+    return this.emit("classified", searchId, tweet, category);
   };
 
   return Classifier;

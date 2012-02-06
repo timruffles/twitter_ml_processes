@@ -1,4 +1,5 @@
-var Classifier, Search, TwitterWatcher, classifier, env, events, logger, pg, pgClient, pubnub, redis, redisClient, searches, sys, twit, twitter, twitterWatcher, twitter_conf, updator;
+var Classifier, Search, TwitterWatcher, classifier, env, events, logger, pg, pgClient, pubnub, redis, redisClient, searches, sys, twit, twitter, twitterWatcher, twitter_conf, updator,
+  __slice = Array.prototype.slice;
 
 sys = require("sys");
 
@@ -48,11 +49,12 @@ twitterWatcher = new TwitterWatcher(twit, redisClient);
 
 pgClient.query("SELECT id FROM tweets", function(err, result) {
   var ids;
+  logger.log("Ignoring " + result.rows.length + " tweets");
   if (result.rows.length > 1) {
     ids = result.rows.map(function(row) {
       return row.id;
     });
-    redisClient.sadd("tweet_ids_received", ids);
+    redisClient.sadd.apply(redisClient, ["tweet_ids_received"].concat(__slice.call(ids)));
   }
   return searches.updateKeywords();
 });
@@ -74,13 +76,13 @@ searches.on("match", function(searchId, tweet) {
 
 searches.on("preTrainingMatch", function(searchId, tweet) {
   logger.log("training data to send to search " + searchId + ", " + tweet.id);
-  return classifier.classifyAs(searchId, tweet, Classifier.INTERESTING);
+  return classifier.classifyAs(searchId, tweet, Classifier.UNSEEN);
 });
 
-classifier.on("classified", function(tweet, searchId, category) {
+classifier.on("classified", function(searchId, tweet, category) {
   var forPubnub;
   logger.log("tweet classified " + searchId + ", " + tweet.id + " " + category);
-  if (category !== Classifier.INTERESTING) return;
+  if (category === Classifier.BORING) return;
   forPubnub = {};
   ["coordinates", "created_at", "in_reply_to_user_id_str", "id_str", "in_reply_to_status_id_str", "retweet_count", "text"].forEach(function(key) {
     return forPubnub[key] = tweet[key];
@@ -112,17 +114,24 @@ updator.on("message", function(channel, data) {
         case "after_create":
           logger.log("search created, " + message.id);
           return searches.create(message.id, message.keywords);
-        case "after_save":
+        case "after_update":
           logger.log("search updated, " + message.id);
           return searches.update(message.id, message.keywords);
         case "after_destroy":
           logger.log("search destroyed, " + message.id);
           return searches.destroy(message.id, message.keywords);
+        default:
+          return logger.error("unhandled modelUpdate", message);
       }
       break;
     case "ClassifiedTweet":
-      logger.log("search changed, trained, " + message.searchId + " " + message.tweetId + " " + message.category);
-      return classifier.train("train", message.searchId, message.tweet, message.category);
+      switch (message.callback) {
+        case "after_update":
+          logger.log("tweet changed, trained, " + message.search_id + " " + message.tweet_id + " " + message.category);
+          return classifier.train("train", message.search_id, message.tweet, message.category);
+        default:
+          return logger.error("unhandled modelUpdate", message);
+      }
   }
 });
 

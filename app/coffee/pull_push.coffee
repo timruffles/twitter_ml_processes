@@ -30,9 +30,10 @@ TwitterWatcher = require("./twitter_watcher").TwitterWatcher
 twitterWatcher = new TwitterWatcher(twit,redisClient)
 
 pgClient.query "SELECT id FROM tweets", (err,result) ->
+  logger.log "Ignoring #{result.rows.length} tweets"
   if result.rows.length > 1
     ids = result.rows.map (row) -> row.id
-    redisClient.sadd "tweet_ids_received", ids
+    redisClient.sadd "tweet_ids_received", ids...
   searches.updateKeywords()
 
 # start watching twitter for our keywords, updating whenever they change
@@ -50,12 +51,12 @@ searches.on "match", (searchId,tweet) ->
   classifier.classify searchId, tweet
 searches.on "preTrainingMatch", (searchId,tweet) ->
   logger.log "training data to send to search #{searchId}, #{tweet.id}"
-  classifier.classifyAs searchId, tweet, Classifier.INTERESTING
+  classifier.classifyAs searchId, tweet, Classifier.UNSEEN
 
 # if a tweet is classified as interesting, publish it in case the user is online
-classifier.on "classified", (tweet,searchId,category) ->
+classifier.on "classified", (searchId,tweet,category) ->
   logger.log "tweet classified #{searchId}, #{tweet.id} #{category}"
-  return unless category == Classifier.INTERESTING
+  return if category == Classifier.BORING
   # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
   forPubnub = {}
   [
@@ -94,14 +95,20 @@ updator.on "message", (channel,data) ->
         when "after_create"
           logger.log "search created, #{message.id}"
           searches.create(message.id,message.keywords)
-        when "after_save"
+        when "after_update"
           logger.log "search updated, #{message.id}"
           searches.update(message.id,message.keywords)
         when "after_destroy"
           logger.log "search destroyed, #{message.id}"
           searches.destroy(message.id,message.keywords)
+        else
+          logger.error "unhandled modelUpdate", message
     when "ClassifiedTweet"
-      logger.log "search changed, trained, #{message.searchId} #{message.tweetId} #{message.category}"
-      classifier.train "train", message.searchId, message.tweet, message.category
+      switch message.callback
+        when "after_update"
+          logger.log "tweet changed, trained, #{message.search_id} #{message.tweet_id} #{message.category}"
+          classifier.train "train", message.search_id, message.tweet, message.category
+        else
+          logger.error "unhandled modelUpdate", message
 
 module.exports = {}

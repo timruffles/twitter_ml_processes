@@ -1,4 +1,4 @@
-var possessives, quotes, separators, stemmer, text, trailingWS, twitterCommands, url, _;
+var Iconv, possessives, quotes, separators, stemmer, text, trailingWS, twitterCommands, url, _;
 
 url = require("url");
 
@@ -6,9 +6,11 @@ _ = require("underscore");
 
 stemmer = require("../js/stemmer").stemmer;
 
+Iconv = require("iconv").Iconv;
+
 trailingWS = /^\s+|\s+$/;
 
-separators = /[,;\-\.!?\(\)\{\}\[\]"&:*]/g;
+separators = /[,;_\-\.!?\(\)\{\}\[\]"&:*]/g;
 
 quotes = /\B["']\b|\b["']\B/;
 
@@ -19,18 +21,27 @@ possessives = /'s/g;
 module.exports = text = {
   textToTrimmedWords: function(phrase) {
     if (phrase == null) phrase = "";
-    return phrase.toLowerCase().replace(separators, " ").replace(quotes, "").split(" ").map(function(word) {
+    return phrase.split(" ").map(function(word) {
       return word.replace(trailingWS, "");
     }).filter(function(word) {
       return !/^\s*$/.test(word);
     });
   },
+  normaliseWords: function(phrase) {
+    if (phrase == null) phrase = "";
+    return phrase.toLowerCase().replace(separators, " ").replace(quotes, "").replace(possessives, "");
+  },
   twitterTextToKeywords: function(phrase) {
     if (phrase == null) phrase = "";
-    return text.textToTrimmedWords(text.removeTwitterCommands(phrase.replace(possessives, "")));
+    return text.textToTrimmedWords(text.removeTwitterCommands(text.normaliseWords(phrase)));
   },
   textToKeywords: function(phrase) {
     return this.textToTrimmedWords(phrase);
+  },
+  textToPhrases: function(string) {
+    return string.split(",").map(function(phrase) {
+      return text.textToTrimmedWords(phrase);
+    });
   },
   removeTwitterCommands: function(text) {
     return text.replace(twitterCommands, " ");
@@ -51,5 +62,8 @@ module.exports = text = {
     ].map(function(phrase) {
       return text.twitterTextToKeywords(phrase);
     }));
+  },
+  transliterateToUtfBmp: function(string) {
+    return new Iconv("UTF-16", "UTF-8//TRANSLIT").convert(new Iconv("UTF-8", "UTF-16").convert(string)).toString("UTF-8");
   }
 };
