@@ -17,11 +17,13 @@ Classifier = class Classifier extends require("events").EventEmitter
         options:
           hostname: 'localhost'
           port: 6379
-          name: "tweet_classifications:#{searchId}" # namespace so you can persist training
+          # namespace so you can persist training
+          name: "tweet_classifications:#{searchId}"
       thresholds:
         boring: 1
         interesting: 3
-      def: INTERESTING # category if can't classify
+      # category if can't classify
+      def: INTERESTING
 
   classificationString: (tweet) ->
     text.tweetToKeywords(tweet).map((word) ->

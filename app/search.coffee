@@ -1,31 +1,41 @@
 text = require "./text"
 logger = require "./logger"
 _ = require "underscore"
-Q = require("q").Q
+Q = require("q")
 
 class SearchStore extends require("events").EventEmitter
+  constructor: (@redis) ->
   update: (searchId,words) ->
     @destroy(searchId).then =>
-      @save(searchId,keywords)
+      @save(searchId,words)
   save: (searchId,words)->
     query = words.sort().join(" ")
-    Q.ncall @redis.hset, @redis, "searches", searchId, query
+    promise = Q.ncall @redis.hset, @redis, "searches", searchId, query
+    promise.then @keywordsChanged
+    promise
   destroy: (searchId) ->
-    Q.ncall @redis.hdel, @redis, "searches", searchId
+    promise = Q.ncall @redis.hdel, @redis, "searches", searchId
+    promise.then @keywordsChanged
+    promise
   all: ->
     Q.ncall @redis.hgetall, @redis, "searches"
-  keywordsChanged: ->
-    @redis.smembers "queries", (err,queries) =>
-      @emit "keywordsChang ed", queries
+  keywordsChanged: =>
+    queries = {}
+    @redis.hgetall "searches", (err,searches) =>
+      for own searchId, query of searches
+        queries[query] = true
+      @emit "keywordsChanged", Object.keys(queries)
 
 class Search extends require("events").EventEmitter
   constructor: (@redis,@pg,@twitter) ->
-    @store = new SearchStore
+    @store = new SearchStore(@redis)
     @store.on "keywordsChanged", (queries) =>
       @emit "keywordsChanged", queries
-  create: (searchId,keywords) ->
-    @store.save(searchId,text.textToKeywords(keywords))
-    @twitter.search keywords, include_entities: "t", (err,result) =>
+  updateKeywords: ->
+    @store.keywordsChanged()
+  create: (searchId,keywordsString) ->
+    @store.save(searchId,text.textToKeywords(keywordsString))
+    @twitter.search keywordsString, include_entities: "t", (err,result) =>
       result["results"].forEach (tweet) =>
         # tweet IDs are too long for JS, need to use the string everywhere
         tweet.id = tweet.id_str
@@ -37,10 +47,9 @@ class Search extends require("events").EventEmitter
           profile_image_url_https: tweet.profile_image_url
           name: ""
         @emit "preTrainingMatch", searchId, tweet
-
   # rails:/app/models/search for format
-  update: (searchId,rawKeywords) ->
-    @store.update(searchId,text.textToKeywords(keywords))
+  update: (searchId,keywordsString) ->
+    @store.update(searchId,text.textToKeywords(keywordsString))
   destroy: (searchId) ->
     @store.destroy(searchId)
   tweet: (tweet) ->

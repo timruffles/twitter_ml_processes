@@ -8,6 +8,9 @@ pubnub = require("pubnub").init
   publish_key: env.PN_PUB
   subscribe_key: env.PN_SUB
 logger = require("./logger")
+UserLocation = require "./user_location"
+Q = require("q")
+Queue = require "./queue
 
 
 pg = require("pg")
@@ -20,7 +23,6 @@ twit = new twitter twitter_conf =
   consumer_secret: env.TW_SECRET
   access_token_key: env.TW_ACCESS_TOKEN
   access_token_secret: env.TW_ACCESS_SECRET
-console.log twitter_conf
 
 Search = require("./search").Search
 searches = new Search(redisClient,pgClient,twit)
@@ -29,12 +31,17 @@ classifier = new Classifier(pgClient)
 TwitterWatcher = require("./twitter_watcher").TwitterWatcher
 twitterWatcher = new TwitterWatcher(twit,redisClient)
 
+multi = redisClient.multi()
 pgClient.query "SELECT id FROM tweets", (err,result) ->
   logger.log "Ignoring #{result.rows.length} tweets"
   if result.rows.length > 1
-    ids = result.rows.map (row) -> row.id
-    redisClient.sadd "tweet_ids_received", ids...
-  searches.updateKeywords()
+    result.rows.forEach (row) ->
+      multi.sadd "tweet_ids_received", row.id
+    Q.ncall(multi.exec,multi).then ->
+      searches.updateKeywords()
+    .end()
+  else
+    searches.updateKeywords()
 
 # start watching twitter for our keywords, updating whenever they change
 searches.on "keywordsChanged", (keywords) ->
@@ -83,12 +90,8 @@ classifier.on "classified", (searchId,tweet,category) ->
       tweet: forPubnub
 
 # we listen here for any modifications to our models
-updator = redis.createClient()
-updator.subscribe "modelUpdates"
-updator.on "message", (channel,data) ->
-  logger.log "msg on #{channel}"
-  return unless channel == "modelUpdates"
-  message = JSON.parse(data)
+modelUpdates = new Queue redis, "model_updates"
+modelUpdates.on "item", (message) ->
   switch message.type
     when "Search"
       switch message.callback
@@ -107,8 +110,15 @@ updator.on "message", (channel,data) ->
       switch message.callback
         when "after_update"
           logger.log "tweet changed, trained, #{message.search_id} #{message.tweet_id} #{message.category}"
-          classifier.train "train", message.search_id, message.tweet, message.category
+          logger.log message.tweet
+          classifier.train message.search_id, message.tweet, message.category
         else
           logger.error "unhandled modelUpdate", message
+    when "User"
+      switch message.callback
+        when "after_create"
+          new UserLocation(message,pg,twit).identify()
+
 
 module.exports = {}
+

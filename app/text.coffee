@@ -1,6 +1,5 @@
 url = require("url")
 _ = require("underscore")
-stemmer = require("../js/stemmer").stemmer
 Iconv = require("iconv").Iconv
 
 trailingWS = /^\s+|\s+$/
