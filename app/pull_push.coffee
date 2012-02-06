@@ -114,10 +114,8 @@ modelUpdates.on "item", (message) ->
           classifier.train message.search_id, message.tweet, message.category
         else
           logger.error "unhandled modelUpdate", message
-    when "User"
-      switch message.callback
-        when "after_create"
-          new UserLocation(message,pg,twit).identify()
+    else
+      logger.error "unhandelled modelUpdate", message
 
 
 module.exports = {}
