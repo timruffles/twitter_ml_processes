@@ -1,6 +1,6 @@
 brain = require("brain")
-stemmer = require("../js/stemmer").stemmer
-text = require("../js/text")
+stemmer = require("./libs/stemmer").stemmer
+text = require("./text")
 logger = require("./logger")
 # ## User updates
 Classifier = class Classifier extends require("events").EventEmitter
