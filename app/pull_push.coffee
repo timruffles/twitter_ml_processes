@@ -90,7 +90,7 @@ classifier.on "classified", (searchId,tweet,category) ->
       tweet: forPubnub
 
 # we listen here for any modifications to our models
-modelUpdates = new Queue redis, "model_updates"
+modelUpdates = new Queue (-> redis.createClient(env.REDISTOGO_URL)), "model_updates"
 modelUpdates.on "item", (message) ->
   switch message.type
     when "Search"

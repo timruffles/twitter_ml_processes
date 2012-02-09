@@ -1,9 +1,9 @@
 logger = require "./logger"
 
 class Queue extends require("events").EventEmitter
-  constructor: (@redis,@queue) ->
-    @subscriber = @redis.createClient()
-    @consumer = @redis.createClient()
+  constructor: (createClient,@queue) ->
+    @subscriber = createClient()
+    @consumer = createClient()
     @subscriber.subscribe "enqueued:#{@queue}"
     @subscribe.on "message", @get
     @get()
