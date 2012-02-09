@@ -16,6 +16,9 @@ redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
   console.info "Connecting to redis"
   client = redis.createClient(redisConf.port,redisConf.hostname)
+  client.on "error", (err) ->
+    logger.error "Redis client had an error"
+    logger.error err
   client.auth redisConf.auth, (err) ->
     logger.error "Could not connect to redis!"
     throw err
