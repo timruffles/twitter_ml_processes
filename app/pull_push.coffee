@@ -13,7 +13,9 @@ Queue = require "./queue"
 redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
   client = redis.createClient(redisConf.port,redisConf.hostname)
-  client.auth(redisConf.auth)
+  client.auth redisConf.auth, (err) ->
+    logger.error "Could not connect to redis!"
+    throw err
   client
 redisClient = createRedisClient()
 
