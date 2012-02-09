@@ -1,1 +1,1 @@
-worker: coffee app/pull_pusher.coffee
+worker: coffee app/pull_push.coffee
