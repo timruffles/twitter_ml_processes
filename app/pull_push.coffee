@@ -2,8 +2,6 @@
 sys = require("sys")
 env = process.env
 redis = require("redis")
-createRedisClient = (-> redis.createClient(env.REDISTOGO_URL))
-redisClient = createRedisClient()
 events = require('events')
 pubnub = require("pubnub").init
   publish_key: env.PN_PUB
@@ -11,6 +9,13 @@ pubnub = require("pubnub").init
 logger = require("./logger")
 Q = require("q")
 Queue = require "./queue"
+
+redisConf = require("url").parse env.REDISTOGO_URL
+createRedisClient = ->
+  client = redis.createClient(redisConf.port,redisConf.hostname)
+  client.auth(redisConf.auth)
+  client
+redisClient = createRedisClient()
 
 
 pg = require("pg")
