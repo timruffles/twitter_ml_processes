@@ -8,7 +8,6 @@ pubnub = require("pubnub").init
   publish_key: env.PN_PUB
   subscribe_key: env.PN_SUB
 logger = require("./logger")
-UserLocation = require "./user_location"
 Q = require("q")
 Queue = require "./queue"
 
