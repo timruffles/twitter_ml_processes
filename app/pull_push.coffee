@@ -19,7 +19,7 @@ createRedisClient = ->
   client.on "error", (err) ->
     logger.error "Redis client had an error"
     logger.error err
-  client.auth redisConf.auth, (err) ->
+  client.auth redisConf.auth.split(":")[1], (err) ->
     logger.error "Could not connect to redis!"
     throw err
   client
