@@ -10,8 +10,11 @@ logger = require("./logger")
 Q = require("q")
 Queue = require "./queue"
 
+console.info "Loaded libraries"
+
 redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
+  console.info "Connecting to redis"
   client = redis.createClient(redisConf.port,redisConf.hostname)
   client.auth redisConf.auth, (err) ->
     logger.error "Could not connect to redis!"
