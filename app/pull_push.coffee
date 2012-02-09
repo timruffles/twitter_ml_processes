@@ -14,7 +14,7 @@ console.info "Loaded libraries"
 
 redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
-  console.debug "Connecting to redis"
+  logger.debug "Connecting to redis"
   client = redis.createClient(redisConf.port,redisConf.hostname)
   client.on "error", (err) ->
     logger.error "Redis client had an error"
