@@ -2,7 +2,7 @@
 sys = require("sys")
 env = process.env
 redis = require("redis")
-redisClient = redis.createClient()
+redisClient = redis.createClient(env.REDISTOGO_URL)
 events = require('events')
 pubnub = require("pubnub").init
   publish_key: env.PN_PUB
@@ -10,11 +10,11 @@ pubnub = require("pubnub").init
 logger = require("./logger")
 UserLocation = require "./user_location"
 Q = require("q")
-Queue = require "./queue
+Queue = require "./queue"
 
 
 pg = require("pg")
-pgClient = new pg.Client "postgres://#{env.PG_USER}:#{env.PG_PASS}@localhost/#{env.PG_DB}"
+pgClient = new pg.Client env.DATABASE_URL
 pgClient.connect()
 
 twitter = require("ntwitter")
