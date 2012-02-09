@@ -5,12 +5,12 @@ class Queue extends require("events").EventEmitter
     @subscriber = createClient()
     @consumer = createClient()
     @subscriber.subscribe "enqueued:#{@queue}"
-    @subscribe.on "message", @get
+    @subscriber.on "message", @get
     @get()
   get: =>
     @consumer.multi()
           .lpop(@queue)
-          .llen()
+          .llen(@queue)
           .exec (err, [item,length]) =>
             if err
               return logger.error "Queue error", err

@@ -9,5 +9,5 @@ module.exports = logger =
       console.log msg
 ["debug","info","warn","error"].forEach (level) ->
   logger[level] = (msg) ->
-    logger.log msg, level
+    logger.log msg, logger[level.toUpperCase()]
 

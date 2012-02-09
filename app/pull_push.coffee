@@ -2,7 +2,8 @@
 sys = require("sys")
 env = process.env
 redis = require("redis")
-redisClient = redis.createClient(env.REDISTOGO_URL)
+createRedisClient = (-> redis.createClient(env.REDISTOGO_URL))
+redisClient = createRedisClient()
 events = require('events')
 pubnub = require("pubnub").init
   publish_key: env.PN_PUB
@@ -89,7 +90,7 @@ classifier.on "classified", (searchId,tweet,category) ->
       tweet: forPubnub
 
 # we listen here for any modifications to our models
-modelUpdates = new Queue (-> redis.createClient(env.REDISTOGO_URL)), "model_updates"
+modelUpdates = new Queue createRedisClient, "model_updates"
 modelUpdates.on "item", (message) ->
   switch message.type
     when "Search"
