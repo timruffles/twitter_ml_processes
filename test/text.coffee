@@ -1,12 +1,14 @@
 assert = require "assert"
-text = require "../app/js/text"
+text = require "../app/text"
 
 tests = [
   ->
-    keywords = text.textToKeywords "a, b c,\n\t\t d  "
-    assert.deepEqual ["a","b","c","d"], keywords, "cleans up keywords"
+    keywords = text.toPhrases "a, b c,\n\t\t d \t\t\n e      f, g "
+    assert.deepEqual [["a"],["b","c"],["d","e","f"],["g"]], keywords, "cleans up keywords"
   ->
-    console.log text.tweetToKeywords exampleTweet
+    query1 = "things football, bird watching, stuff"
+    query2 = "football things, watching bird, stuff"
+    assert.deepEqual text.toPhrases(query1), text.toPhrases(query2)
 
 ]
 
@@ -138,6 +140,8 @@ exampleTweet = {
 }
 
 
-tests.forEach (t) -> t()
+tests.forEach (t,i) ->
+  console.log "Running test #{i}..."
+  t()
 
 
