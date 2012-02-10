@@ -9,14 +9,15 @@ Classifier = class Classifier extends require("events").EventEmitter
   this.BORING = BORING = "boring"
   this.UNSEEN = UNSEEN = "unseen"
 
-  constructor: (@pg) ->
+  constructor: (@pg,@redisConf) ->
   getBayes: (searchId) ->
     new brain.BayesianClassifier
       backend :
         type: 'redis'
         options:
-          hostname: 'localhost'
-          port: 6379
+          hostname: @redisConf.hostname
+          port: @redisConf.port
+          auth: @redisConf.auth
           # namespace so you can persist training
           name: "tweet_classifications:#{searchId}"
       thresholds:

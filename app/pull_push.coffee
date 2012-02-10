@@ -13,13 +13,14 @@ Queue = require "./queue"
 console.info "Loaded libraries"
 
 redisConf = require("url").parse env.REDISTOGO_URL
+redisConf.auth = redisConf.auth.split(":")[1]
 createRedisClient = ->
   logger.debug "Connecting to redis"
   client = redis.createClient(redisConf.port,redisConf.hostname)
   client.on "error", (err) ->
     logger.error "Redis client had an error"
     logger.error err
-  client.auth redisConf.auth.split(":")[1], (err,res) ->
+  client.auth redisConf.auth, (err,res) ->
     if err
       logger.error "Could not connect to redis!"
       throw err
@@ -43,7 +44,7 @@ twit = new twitter twitter_conf =
 Search = require("./search").Search
 searches = new Search(redisClient,pgClient,twit)
 Classifier = require("./classifier").Classifier
-classifier = new Classifier(pgClient)
+classifier = new Classifier(pgClient,redisConf)
 TwitterWatcher = require("./twitter_watcher").TwitterWatcher
 twitterWatcher = new TwitterWatcher(twit,redisClient)
 
