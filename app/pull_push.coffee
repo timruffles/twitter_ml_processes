@@ -15,6 +15,8 @@ console.info "Loaded libraries"
 redis.debug_mode = false
 redisConf = require("url").parse env.IPC_REDIS_URL
 redisConf.auth = redisConf.auth.split(":")[1]
+classifierRedisConf = require("url").parse env.REDISTOGO_URL
+classifierRedisConf.auth = redisConf.auth.split(":")[1]
 
 createRedisClient = ->
   logger.debug "Connecting to redis"
@@ -46,8 +48,6 @@ twit = new twitter twitter_conf =
 Search = require("./search").Search
 searches = new Search(redisClient,pgClient,twit)
 Classifier = require("./classifier").Classifier
-classifierRedisConf = require("url").parse env.REDISTOGO_URL
-classifierRedisConf.auth = redisConf.auth.split(":")[1]
 classifier = new Classifier(pgClient,classifierRedisConf)
 TwitterWatcher = require("./twitter_watcher").TwitterWatcher
 twitterWatcher = new TwitterWatcher(twit,redisClient)
