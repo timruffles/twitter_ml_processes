@@ -11,7 +11,7 @@ class SearchStore extends require("events").EventEmitter
   save: (searchId,string)->
     logger.debug "saving search #{searchId}"
     asQueries = search.toQueries string
-    promise = Q.ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
+    promise = @ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
     promise.then @keywordsChanged
     promise
   destroy: (searchId) ->
@@ -20,10 +20,14 @@ class SearchStore extends require("events").EventEmitter
     promise
   _destroy: (searchId) ->
     logger.debug "destroying search #{searchId}"
-    Q.ncall @redis.hdel, @redis, "searches", searchId
+    @ncall @redis.hdel, @redis, "searches", searchId
   all: ->
-    Q.ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
+    @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
+  fail: (err) ->
+    logger.error err
+  ncall: ->
+    Q.ncall.apply(Q,arguments).fail(@fail)
   keywordsChanged: =>
     allQueries = {}
     @all().then (searches) =>
