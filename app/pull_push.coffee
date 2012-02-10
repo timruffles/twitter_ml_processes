@@ -99,7 +99,7 @@ classifier.on "classified", (searchId,tweet,category) ->
     message :
       tweet: forPubnub
     callback: (info) ->
-      logger.debug info[0], info[1]
+      logger.debug "Pubnub response", info[0], info[1]
 
 # we listen here for any modifications to our models
 modelUpdates = new Queue createRedisClient, "model_updates"
