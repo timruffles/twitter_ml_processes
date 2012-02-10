@@ -9,6 +9,7 @@ class SearchStore extends require("events").EventEmitter
     @_destroy(searchId).then =>
       @save(searchId,words)
   save: (searchId,string)->
+    console.debug "saving search #{searchId}"
     asQueries = search.toQueries string
     promise = Q.ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
     promise.then @keywordsChanged
@@ -18,6 +19,7 @@ class SearchStore extends require("events").EventEmitter
     promise.then @keywordsChanged
     promise
   _destroy: (searchId) ->
+    console.debug "destroying search #{searchId}"
     Q.ncall @redis.hdel, @redis, "searches", searchId
   all: ->
     Q.ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
@@ -40,7 +42,9 @@ class Search extends require("events").EventEmitter
   create: (searchId,keywordsString) ->
     @store.save(searchId,keywordsString)
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
-      result["results"].forEach (tweet) =>
+      return console.error "Could not retrive tweets,\n#{err}" if err
+      console.log "Received #{result.results} tweets for new query #{keywordsString}"
+      result.results.forEach (tweet) =>
         # tweet IDs are too long for JS, need to use the string everywhere
         tweet.id = tweet.id_str
         # https://dev.twitter.com/docs/api/1/get/search
