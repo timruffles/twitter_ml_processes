@@ -7,7 +7,8 @@ class SearchStore extends require("events").EventEmitter
   constructor: (@redis) ->
   update: (searchId,string) ->
     @_destroy(searchId).then =>
-      @save(searchId,words)
+      logger.debug "update callback"
+      @save(searchId,string)
   save: (searchId,string)->
     logger.debug "saving search #{searchId}"
     asQueries = search.toQueries string
@@ -20,18 +21,19 @@ class SearchStore extends require("events").EventEmitter
     promise
   _destroy: (searchId) ->
     logger.debug "destroying search #{searchId}"
-    prom = @ncall @redis.hdel, @redis, "searches", searchId
-    @redis.hdel "searches", searchId, (err,result) ->
-      logger.debug "result of hdel not wrapped in ncall"
-      logger.debug arguments
-    prom
+    @ncall @redis.hdel, @redis, "searches", searchId
   all: ->
     @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
   fail: (err) ->
     logger.error "SearchStore redis error\n#{err}"
+  debug: ->
+    logger.debug "Got some stuff from redis"
+    logger.debug arguments
   ncall: ->
-    Q.ncall.apply(Q,arguments).fail(@fail)
+    prom = Q.ncall.apply(Q,arguments)
+    prom.then(@debug,@fail)
+    prom
   keywordsChanged: =>
     allQueries = {}
     @all().then (searches) =>
