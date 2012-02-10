@@ -54,6 +54,8 @@ module.exports = _.extend text,
     toQueries: (phrase = "") ->
       phrase.split(",").map((phrase) ->
         text.toWords(phrase).sort()
+      ).filter((phrase) ->
+        phrase.length > 0
       )
   classify: {}
 
