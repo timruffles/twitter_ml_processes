@@ -33,7 +33,6 @@ createRedisClient = ->
   client
 redisClient = createRedisClient()
 
-
 pg = require("pg")
 pgClient = new pg.Client env.DATABASE_URL
 pgClient.connect()
@@ -70,10 +69,8 @@ searches.on "preTrainingMatch", (searchId,tweet) ->
   logger.log "training data to send to search #{searchId}, #{tweet.id}"
   classifier.classifyAs searchId, tweet, Classifier.INTERESTING
 
-# if a tweet is classified as interesting, publish it in case the user is online
 classifier.on "classified", (searchId,tweet,category) ->
   logger.debug "tweet classified #{searchId}, #{tweet.id} #{category}"
-  return if category == Classifier.BORING
   # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
   forPubnub = {}
   [
