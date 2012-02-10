@@ -21,6 +21,9 @@ class SearchStore extends require("events").EventEmitter
   _destroy: (searchId) ->
     logger.debug "destroying search #{searchId}"
     @ncall @redis.hdel, @redis, "searches", searchId
+    @redis.hdel "searches", searchId, (err,result) ->
+      logger.debug "result of hdel not wrapped in ncall"
+      logger.debug arguments
   all: ->
     @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}

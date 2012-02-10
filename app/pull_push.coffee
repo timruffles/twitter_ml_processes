@@ -12,7 +12,6 @@ Queue = require "./queue"
 
 console.info "Loaded libraries"
 
-redis.debug_mode = true
 redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
   logger.debug "Connecting to redis"
@@ -87,7 +86,7 @@ classifier.on "classified", (searchId,tweet,category) ->
     "coordinates"
     "created_at"
     "in_reply_to_user_id_str"
-    "id_str"
+    "id"
     "in_reply_to_status_id_str"
     "retweet_count"
     "text"
@@ -95,12 +94,12 @@ classifier.on "classified", (searchId,tweet,category) ->
     forPubnub[key] = tweet[key]
   forPubnub.user = {}
   [
-    "id_str"
     "name"
     "screen_name"
     "profile_image_url_https"
   ].forEach (key) ->
     forPubnub.user[key] = tweet.user[key]
+  forPubnub.user.id = tweet.user.id_str
   pubnub.publish
     channel : "search:#{searchId}:tweets:add"
     message :
