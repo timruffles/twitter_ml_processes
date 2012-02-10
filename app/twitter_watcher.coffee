@@ -14,7 +14,7 @@ class TweetWatcher extends require("events").EventEmitter
         # tweet IDs are too long for JS, need to use the string everywhere
         logger.log "Tweet received, #{data.id}, #{data.id_str} #{data.text}"
         data.id = data.id_str
-        @redis.sismember "tweet_ids_received", (e,isMember) =>
+        @redis.sismember "tweet_ids_received", data.id, (e,isMember) =>
           if isMember
             logger.info "Duplicate tweet, #{data.id}, ignored"
           else

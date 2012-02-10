@@ -20,6 +20,9 @@ Classifier = class Classifier extends require("events").EventEmitter
           auth: @redisConf.auth
           # namespace so you can persist training
           name: "tweet_classifications:#{searchId}"
+          error: ->
+            logger.error "Classifier can't use redis"
+            logger.error arguments
       thresholds:
         boring: 1
         interesting: 3
@@ -39,7 +42,7 @@ Classifier = class Classifier extends require("events").EventEmitter
     classifiedEvents = this
     pg = @pg
     @getBayes(searchId).classify @classificationString(tweet), (category) ->
-      logger.debug "classified #{tweet.id} as #{category}"
+      logger.log "classified #{tweet.id} as #{category}"
       tweet.category = category
       classifiedEvents.emit "classified", searchId, tweet, category
       # store the tweet's classification for if user isn't online right now
