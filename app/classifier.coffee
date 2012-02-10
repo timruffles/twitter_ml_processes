@@ -9,39 +9,7 @@ Classifier = class Classifier extends require("events").EventEmitter
   this.BORING = BORING = "boring"
   this.UNSEEN = UNSEEN = "unseen"
 
-  constructor: (@pg) ->  normaliseWords: (phrase = "") ->
-    phrase.toLowerCase()
-          .replace(separators," ")
-          .replace(quotes,"")
-          .replace(possessives,"")
-  removeTwitterCommands: (phrase = "") ->
-    phrase.replace(twitterCommands," ")
-  readUrl: (text) ->
-    data = url.parse(text)
-    [
-      data.hostname
-      data.pathname.replace("/"," ")
-      data.query?.replace(/&=/," ")
-    ].join " "
-  tweetTextToWords: (phrase = "") ->
-    text.toWords classify.removeTwitterCommands classify.normaliseWords phrase
-  # returns a list of words that are stripped of symbols, normalised and stubbed
-  tweetToWords: (tweet) ->
-    _.flatten([
-      tweet.text
-      tweet.in_reply_to_screen_name
-      tweet.user.name
-      tweet.user.screen_name
-      tweet.user.description
-      tweet.entities.urls?.map((url) ->
-        classify.readUrl url.expanded_url || url.url
-      ).join(" ")
-      tweet.entities.media?.map((media) ->
-        classify.readUrl media.expanded_url || media.url
-      ).join(" ")
-    ].map((phrase) ->
-      text.normaliseWords(phrase)
-    ))
+  constructor: (@pg) ->
   getBayes: (searchId) ->
     new brain.BayesianClassifier
       backend :

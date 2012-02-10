@@ -76,4 +76,5 @@ class Search extends require("events").EventEmitter
                 logger.error "Error saving tweet #{tweet.id}" if err
                 logger.error err
 
+module.exports.SearchStore = SearchStore
 module.exports.Search = Search
