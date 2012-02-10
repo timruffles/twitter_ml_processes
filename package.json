@@ -9,7 +9,7 @@
    , "pg": "0.6.9"
    , "redis": "0.7.1"
    , "coffee-script": "1.2.0"
-   , "brain": "https://github.com/timruffles/brain/tarball/346b4e73d80d03f40082c7716d213bddc19f6c2b"
+   , "brain": "https://github.com/timruffles/brain/tarball/0.3.6"
    , "q": "0.8.2"
    , "iconv": "1.1.3"
   }
