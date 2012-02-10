@@ -18,15 +18,15 @@ class SearchStore extends require("events").EventEmitter
     promise.then @keywordsChanged
     promise
   all: ->
-    Q.ncall(@redis.hgetall, @redis, "searches").then (searches) ->
+    Q.ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
   keywordsChanged: =>
-    queries = {}
+    allQueries = {}
     @all().then (searches) =>
       for own searchId, queries of searches
         for query in queries
-          queries[query] = true
-      @emit "keywordsChanged", Object.keys(queries)
+          allQueries[query.join(" ")] = true
+      @emit "keywordsChanged", Object.keys(allQueries)
 
 class Search extends require("events").EventEmitter
   constructor: (@redis,@pg,@twitter) ->

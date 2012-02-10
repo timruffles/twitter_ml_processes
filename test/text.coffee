@@ -3,12 +3,12 @@ text = require "../app/text"
 
 tests = [
   ->
-    keywords = text.toPhrases "a, b c,\n\t\t d \t\t\n e      f, g "
+    keywords = text.search.toQueries "a, b c,\n\t\t d \t\t\n e      f, g "
     assert.deepEqual [["a"],["b","c"],["d","e","f"],["g"]], keywords, "cleans up keywords"
   ->
     query1 = "things football, bird watching, stuff"
     query2 = "football things, watching bird, stuff"
-    assert.deepEqual text.toPhrases(query1), text.toPhrases(query2)
+    assert.deepEqual text.search.toQueries(query1), text.search.toQueries(query2)
 
 ]
 

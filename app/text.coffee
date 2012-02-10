@@ -13,10 +13,6 @@ possessives = /'s/g
 text =
   toWords: (phrase = "") ->
     phrase.split(/\b/).map((w) -> w.trim()).filter (w) -> w != ""
-  toPhrases: (phrase = "") ->
-    phrase.split(",").map((phrase) ->
-      text.toWords(phrase).sort()
-    )
   transliterateToUtfBmp: (string) ->
     new Iconv("UTF-16","UTF-8//TRANSLIT").convert(new Iconv("UTF-8","UTF-16").convert(string)).toString("UTF-8")
   normaliseWords: (phrase = "") ->
@@ -56,8 +52,8 @@ module.exports = _.extend text,
   search: search = 
     # returns a set of sorted arrays representing a logical search (eg [w1,w2] = w1 && w2)
     toQueries: (phrase = "") ->
-      text.toPhrases(phrase).map((phrase) ->
+      phrase.split(",").map((phrase) ->
         text.toWords(phrase).sort()
-      ).sort()
+      )
   classify: {}
 
