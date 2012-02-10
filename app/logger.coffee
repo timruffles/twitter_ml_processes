@@ -3,7 +3,7 @@ module.exports = logger =
   INFO: 1
   WARN: 2
   ERROR: 3
-  logLevel: 1
+  logLevel: process.env.LOG_LEVEL || 1
   log: (msg,level = logger.INFO) ->
     if level >= logger.logLevel
       console.log msg
