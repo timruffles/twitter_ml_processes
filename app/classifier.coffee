@@ -10,9 +10,8 @@ Classifier = class Classifier extends require("events").EventEmitter
   this.UNSEEN = UNSEEN = "unseen"
 
   constructor: (@pg,@redisConf) ->
-
   getBayes: (searchId) ->
-    Classifier.bayes ||= new brain.BayesianClassifier
+    new brain.BayesianClassifier
       backend :
         type: 'redis'
         options:
@@ -51,5 +50,5 @@ Classifier = class Classifier extends require("events").EventEmitter
   classifyAs: (searchId,tweet,category) ->
     @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
     @emit "classified", searchId, tweet, category
-Classifier.bayes = false
+
 module.exports.Classifier = Classifier

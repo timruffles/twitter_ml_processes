@@ -9,7 +9,28 @@ tests = [
     query1 = "things football, bird watching, stuff"
     query2 = "football things, watching bird, stuff"
     assert.deepEqual text.search.toQueries(query1), text.search.toQueries(query2)
-
+  ->
+    forPubnub = {}
+    tweet = exampleTweet
+    [
+      "coordinates"
+      "created_at"
+      "in_reply_to_user_id_str"
+      "id"
+      "in_reply_to_status_id_str"
+      "retweet_count"
+      "text"
+    ].forEach (key) ->
+      forPubnub[key] = tweet[key]
+    forPubnub.user = {}
+    [
+      "name"
+      "screen_name"
+      "profile_image_url_https"
+    ].forEach (key) ->
+      forPubnub.user[key] = tweet.user[key]
+    forPubnub.user.id = tweet.user.id_str
+    console.log JSON.stringify(forPubnub).length
 ]
 
 
