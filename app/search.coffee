@@ -24,7 +24,11 @@ class SearchStore extends require("events").EventEmitter
     @ncall @redis.hdel, @redis, "searches", searchId
   all: ->
     @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
-      Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
+      Object.keys(searches).reduce ((h,k) -> 
+        queries = JSON.parse(searches[k])
+        h[k] = queries if queries.length > 0
+        h
+      ), {}
   fail: (err) ->
     logger.error "SearchStore redis error\n#{err}"
   debug: ->
