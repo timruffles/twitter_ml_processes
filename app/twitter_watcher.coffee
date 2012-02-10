@@ -7,7 +7,7 @@ class TweetWatcher extends require("events").EventEmitter
   makeStream: (keywords, established) ->
     twitterEvents = this
     return if keywords.length == 0
-    @twit.stream "statuses/filter", {track: keyword}, (stream) =>
+    @twit.stream "statuses/filter", {track: keywords}, (stream) =>
       logger.log "Connection established, tracking '#{track}'"
       established(stream)
       stream.on "data", (data) =>
