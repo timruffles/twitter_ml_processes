@@ -6,7 +6,7 @@ search = text.search
 class SearchStore extends require("events").EventEmitter
   constructor: (@redis) ->
   update: (searchId,string) ->
-    @destroy(searchId).then =>
+    @_destroy(searchId).then =>
       @save(searchId,words)
   save: (searchId,string)->
     asQueries = search.toQueries string
@@ -14,9 +14,11 @@ class SearchStore extends require("events").EventEmitter
     promise.then @keywordsChanged
     promise
   destroy: (searchId) ->
-    promise = Q.ncall @redis.hdel, @redis, "searches", searchId
+    promise = @_destroy(searchId)
     promise.then @keywordsChanged
     promise
+  _destroy: (searchId) ->
+    Q.ncall @redis.hdel, @redis, "searches", searchId
   all: ->
     Q.ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}

@@ -14,8 +14,9 @@ class Queue extends require("events").EventEmitter
           .exec (err, [item,length]) =>
             if err
               return logger.error "Queue error", err
-            @emit "item", JSON.parse(item) if item
-            logger.log "Queue '#{@queue}' has #{length} items"
+            if item
+              @emit "item", JSON.parse(item) 
+              logger.log "Processed item, '#{@queue}' now has #{length} items"
             @get() if length > 0
 
 module.exports = Queue
