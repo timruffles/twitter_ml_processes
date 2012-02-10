@@ -2,15 +2,15 @@ text = require "./text"
 logger = require "./logger"
 _ = require "underscore"
 Q = require("q")
-
+search = text.search
 class SearchStore extends require("events").EventEmitter
   constructor: (@redis) ->
-  update: (searchId,words) ->
+  update: (searchId,string) ->
     @destroy(searchId).then =>
       @save(searchId,words)
-  save: (searchId,words)->
-    query = words.sort().join(" ")
-    promise = Q.ncall @redis.hset, @redis, "searches", searchId, query
+  save: (searchId,string)->
+    asQueries = search.toQueries string
+    promise = Q.ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
     promise.then @keywordsChanged
     promise
   destroy: (searchId) ->
@@ -18,12 +18,14 @@ class SearchStore extends require("events").EventEmitter
     promise.then @keywordsChanged
     promise
   all: ->
-    Q.ncall @redis.hgetall, @redis, "searches"
+    Q.ncall(@redis.hgetall, @redis, "searches").then (searches) ->
+      Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
   keywordsChanged: =>
     queries = {}
-    @redis.hgetall "searches", (err,searches) =>
-      for own searchId, query of searches
-        queries[query] = true
+    @all().then (searches) =>
+      for own searchId, queries of searches
+        for query in queries
+          queries[query] = true
       @emit "keywordsChanged", Object.keys(queries)
 
 class Search extends require("events").EventEmitter
@@ -34,7 +36,7 @@ class Search extends require("events").EventEmitter
   updateKeywords: ->
     @store.keywordsChanged()
   create: (searchId,keywordsString) ->
-    @store.save(searchId,text.textToKeywords(keywordsString))
+    @store.save(searchId,keywordsString)
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
       result["results"].forEach (tweet) =>
         # tweet IDs are too long for JS, need to use the string everywhere
@@ -49,18 +51,23 @@ class Search extends require("events").EventEmitter
         @emit "preTrainingMatch", searchId, tweet
   # rails:/app/models/search for format
   update: (searchId,keywordsString) ->
-    @store.update(searchId,text.textToKeywords(keywordsString))
+    @store.update(searchId,keywordsString)
   destroy: (searchId) ->
     @store.destroy(searchId)
   tweet: (tweet) ->
-    tweetWords = text.tweetToKeywords tweet
+    tweetWords = text.tweetToWords tweet
     queriesFulfilled = {}
     wordHash = tweetWords.reduce ((hash,word) -> hash[word] = true; hash), {}
     @store.all().then (searches) =>
-      for own searchId, query of searches
-        if queriesFulfilled[query] || query.split(" ").every((w) -> wordHash[w])
-          queriesFulfilled[query] = true
-          @emit "match", searchId, tweet
+      for own searchId, queries of searches
+        for query in queries
+          hash = query.join(" ")
+          fulfilled = queriesFulfilled[hash] || query.every((w) ->
+            wordHash[w]
+          )
+          if fulfilled
+            queriesFulfilled[query] = true
+            @emit "match", searchId, tweet
 
     tweet.text = text.transliterateToUtfBmp(tweet.text)
     @pg.query "INSERT INTO tweets (id, tweet, created_at, updated_at) values ($1, $2, $3, $4)",

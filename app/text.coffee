@@ -8,26 +8,24 @@ quotes = /\B["']\b|\b["']\B/
 twitterCommands = /[#@]/g
 possessives = /'s/g
 
-module.exports = text =
-  textToTrimmedWords: (phrase = "") ->
-    phrase.split(" ").map((word) ->
-            word.replace(trailingWS,"")
-           ).filter (word) ->
-            !/^\s*$/.test word
+# words = [w1,w2]
+# text =String
+text =
+  toWords: (phrase = "") ->
+    phrase.split(/\b/).map((w) -> w.trim()).filter (w) -> w != ""
+  toPhrases: (phrase = "") ->
+    phrase.split(",").map((phrase) ->
+      text.toWords(phrase).sort()
+    )
+  transliterateToUtfBmp: (string) ->
+    new Iconv("UTF-16","UTF-8//TRANSLIT").convert(new Iconv("UTF-8","UTF-16").convert(string)).toString("UTF-8")
   normaliseWords: (phrase = "") ->
     phrase.toLowerCase()
           .replace(separators," ")
           .replace(quotes,"")
           .replace(possessives,"")
-  twitterTextToKeywords: (phrase = "") ->
-    text.textToTrimmedWords text.removeTwitterCommands text.normaliseWords phrase
-  textToKeywords: (phrase) ->
-    @textToTrimmedWords(phrase)
-  textToPhrases: (string) ->
-    string.split(",").map (phrase) ->
-      text.textToTrimmedWords phrase
-  removeTwitterCommands: (text) ->
-    text.replace(twitterCommands," ")
+  removeTwitterCommands: (phrase = "") ->
+    phrase.replace(twitterCommands," ")
   readUrl: (text) ->
     data = url.parse(text)
     [
@@ -35,7 +33,10 @@ module.exports = text =
       data.pathname.replace("/"," ")
       data.query?.replace(/&=/," ")
     ].join " "
-  tweetToKeywords: (tweet) ->
+  tweetTextToWords: (phrase = "") ->
+    text.toWords text.removeTwitterCommands text.normaliseWords phrase
+  # returns a list of words that are stripped of symbols, normalised and stubbed
+  tweetToWords: (tweet) ->
     _.flatten([
       tweet.text
       tweet.in_reply_to_screen_name
@@ -49,9 +50,14 @@ module.exports = text =
         text.readUrl media.expanded_url || media.url
       ).join(" ")
     ].map((phrase) ->
-      text.twitterTextToKeywords(phrase)
+      text.tweetTextToWords(phrase)
     ))
-  transliterateToUtfBmp: (string) ->
-    new Iconv("UTF-16","UTF-8//TRANSLIT").convert(new Iconv("UTF-8","UTF-16").convert(string)).toString("UTF-8")
-
+module.exports = _.extend text,
+  search: search = 
+    # returns a set of sorted arrays representing a logical search (eg [w1,w2] = w1 && w2)
+    toQueries: (phrase = "") ->
+      text.toPhrases(phrase).map((phrase) ->
+        text.toWords(phrase).sort()
+      ).sort()
+  classify: {}
 
