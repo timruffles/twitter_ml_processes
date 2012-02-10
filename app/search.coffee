@@ -25,7 +25,7 @@ class SearchStore extends require("events").EventEmitter
     @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
       Object.keys(searches).reduce ((h,k) -> h[k] = JSON.parse(searches[k]); h), {}
   fail: (err) ->
-    logger.error "SearchStore rails error\n#{err}"
+    logger.error "SearchStore redis error\n#{err}"
   ncall: ->
     Q.ncall.apply(Q,arguments).fail(@fail)
   keywordsChanged: =>

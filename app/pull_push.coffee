@@ -12,6 +12,7 @@ Queue = require "./queue"
 
 console.info "Loaded libraries"
 
+redis.debug_mode = true
 redisConf = require("url").parse env.REDISTOGO_URL
 createRedisClient = ->
   logger.debug "Connecting to redis"
