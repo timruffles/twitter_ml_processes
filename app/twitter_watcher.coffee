@@ -8,7 +8,7 @@ class TweetWatcher extends require("events").EventEmitter
     twitterEvents = this
     return if keywords.length == 0
     @twit.stream "statuses/filter", {track: keywords}, (stream) =>
-      logger.log "Connection established, tracking '#{track}'"
+      logger.log "Connection established, tracking '#{keywords}'"
       established(stream)
       stream.on "data", (data) =>
         # tweet IDs are too long for JS, need to use the string everywhere
