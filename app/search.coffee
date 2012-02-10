@@ -93,8 +93,13 @@ class Search extends require("events").EventEmitter
     @pg.query "INSERT INTO tweets (id, tweet, created_at, updated_at) values ($1, $2, $3, $4)",
               [tweet.id, JSON.stringify(tweet), new Date(Date.parse(tweet.created_at)),new Date],
               (err,result) ->
-                logger.error "Error saving tweet #{tweet.id}" if err
-                logger.error err
+                return unless err
+                if /duplicate key/.test err
+                  logger.debug "Duplicate key for #{tweet.id}"
+                  logger.debug err
+                else
+                  logger.error "Error saving tweet #{tweet.id}" if err
+                  logger.error err
 
 module.exports.SearchStore = SearchStore
 module.exports.Search = Search
