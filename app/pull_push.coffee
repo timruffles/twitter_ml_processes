@@ -110,7 +110,8 @@ classifier.on "classified", (searchId,tweet,category) ->
     message :
       tweet: forPubnub
     callback: ->
-      console.dir "Pubnub response:\n#{arguments}"
+      console.log "Pubnub response"
+      console.dir arguments
 
 # we listen here for any modifications to our models
 modelUpdates = new Queue createRedisClient, "model_updates"
