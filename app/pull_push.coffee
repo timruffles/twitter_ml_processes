@@ -53,16 +53,6 @@ TwitterWatcher = require("./twitter_watcher").TwitterWatcher
 twitterWatcher = new TwitterWatcher(twit,redisClient)
 
 multi = redisClient.multi()
-pgClient.query "SELECT id FROM tweets", (err,result) ->
-  logger.log "Ignoring #{result.rows.length} tweets"
-  if result.rows.length > 1
-    result.rows.forEach (row) ->
-      multi.sadd "tweet_ids_received", row.id
-    Q.ncall(multi.exec,multi).then ->
-      searches.updateKeywords()
-    .end()
-  else
-    searches.updateKeywords()
 
 # start watching twitter for our keywords, updating whenever they change
 searches.on "keywordsChanged", (keywords) ->
@@ -70,12 +60,11 @@ searches.on "keywordsChanged", (keywords) ->
   twitterWatcher.connect(keywords)
 
 twitterWatcher.on "tweet", (tweet) ->
-  logger.log "tweet received, #{tweet.id}, #{tweet.text}"
   searches.tweet tweet
 
 # when a search matches a tweet, classify it to see if it's interesting
 searches.on "match", (searchId,tweet) ->
-  logger.log "tweet matches search #{searchId}, #{tweet.id}"
+  logger.debug "tweet matches search #{searchId}, #{tweet.id}"
   classifier.classify searchId, tweet
 searches.on "preTrainingMatch", (searchId,tweet) ->
   logger.log "training data to send to search #{searchId}, #{tweet.id}"
@@ -83,7 +72,7 @@ searches.on "preTrainingMatch", (searchId,tweet) ->
 
 # if a tweet is classified as interesting, publish it in case the user is online
 classifier.on "classified", (searchId,tweet,category) ->
-  logger.log "tweet classified #{searchId}, #{tweet.id} #{category}"
+  logger.debug "tweet classified #{searchId}, #{tweet.id} #{category}"
   return if category == Classifier.BORING
   # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
   forPubnub = {}
@@ -101,7 +90,7 @@ classifier.on "classified", (searchId,tweet,category) ->
   [
     "name"
     "screen_name"
-    "profile_image_url_https"
+    "profile_image_url"
   ].forEach (key) ->
     forPubnub.user[key] = tweet.user[key]
   forPubnub.user.id = tweet.user.id_str
@@ -109,9 +98,8 @@ classifier.on "classified", (searchId,tweet,category) ->
     channel : "search:#{searchId}:tweets:add"
     message :
       tweet: forPubnub
-    callback: ->
-      console.log "Pubnub response"
-      console.dir arguments
+    callback: (info) ->
+      logger.debug info[0], info[1]
 
 # we listen here for any modifications to our models
 modelUpdates = new Queue createRedisClient, "model_updates"
@@ -134,13 +122,14 @@ modelUpdates.on "item", (message) ->
       switch message.callback
         when "after_update"
           logger.log "tweet changed, trained, #{message.search_id} #{message.tweet_id} #{message.category}"
-          logger.log message.tweet
           classifier.train message.search_id, message.tweet, message.category
         else
           logger.error "unhandled modelUpdate", message
     else
       logger.error "unhandelled modelUpdate", message
 
+logger.log "Kicking the process off!"
+searches.updateKeywords()
 
 module.exports = {}
 

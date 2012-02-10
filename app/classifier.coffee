@@ -35,14 +35,14 @@ Classifier = class Classifier extends require("events").EventEmitter
     ).join(" ")
 
   train: (searchId,tweet,category) ->
-    console.log("train on ",@classificationString(tweet))
+    logger.debug("train on ",@classificationString(tweet))
     @getBayes(searchId).train(@classificationString(tweet),category)
 
   classify: (searchId, tweet) ->
     classifiedEvents = this
     pg = @pg
     @getBayes(searchId).classify @classificationString(tweet), (category) ->
-      logger.log "classified #{tweet.id} as #{category}"
+      logger.debug "classified #{tweet.id} as #{category}"
       tweet.category = category
       classifiedEvents.emit "classified", searchId, tweet, category
       # store the tweet's classification for if user isn't online right now
