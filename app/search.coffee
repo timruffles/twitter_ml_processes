@@ -55,6 +55,8 @@ class Search extends require("events").EventEmitter
     @store.keywordsChanged()
   create: (searchId,keywordsString) ->
     @store.save(searchId,keywordsString)
+    @search searchId, keywordsString
+  search: (searchId,keywords,emitAs) ->
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
       return logger.error "Could not retrive tweets,\n#{err}" if err
       logger.log "Received #{result.results} tweets for new query #{keywordsString}"
@@ -68,10 +70,11 @@ class Search extends require("events").EventEmitter
           screen_name: tweet.from_user
           profile_image_url_https: tweet.profile_image_url
           name: ""
-        @emit "preTrainingMatch", searchId, tweet
+        @emit "match", searchId, tweet
   # rails:/app/models/search for format
   update: (searchId,keywordsString) ->
     @store.update(searchId,keywordsString)
+    @search(search,keywordsString)
   destroy: (searchId) ->
     @store.destroy(searchId)
   tweet: (tweet) ->

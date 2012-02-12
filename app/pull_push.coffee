@@ -65,13 +65,14 @@ twitterWatcher.on "tweet", (tweet) ->
 searches.on "match", (searchId,tweet) ->
   logger.debug "tweet matches search #{searchId}, #{tweet.id}"
   classifier.classify searchId, tweet
-searches.on "preTrainingMatch", (searchId,tweet) ->
-  logger.log "training data to send to search #{searchId}, #{tweet.id}"
-  classifier.classifyAs searchId, tweet, Classifier.INTERESTING
 
 classifier.on "classified", (searchId,tweet,category) ->
   logger.debug "tweet classified #{searchId}, #{tweet.id} #{category}"
-  # tweets pushed to interested clients as {tweet: {}} events, with #category of either 'interesting' or 'boring'
+  publish searchId, tweet
+
+publish = (searchId,tweet) ->
+  # tweets pushed to interested clients as {tweet: {}} events, with #category
+  # of either 'interesting', 'boring' or 'unseen'
   forPubnub = {}
   [
     "coordinates"
@@ -96,7 +97,7 @@ classifier.on "classified", (searchId,tweet,category) ->
     message :
       tweet: forPubnub
     callback: (info) ->
-      logger.debug "Pubnub response", info[0], info[1]
+      logger.debug "Pubnub response #{JSON.stringify info}"
 
 # we listen here for any modifications to our models
 modelUpdates = new Queue createRedisClient, "model_updates"
@@ -122,6 +123,10 @@ modelUpdates.on "item", (message) ->
           classifier.train message.search_id, message.tweet, message.category
         else
           logger.error "unhandled modelUpdate", message
+    when "User"
+      switch message.callback
+        when "after_update"
+          redisClient.set "user:#{message.id}", JSON.stringify(token: message.oauth_token, secret: message.oauth_secret)
     else
       logger.error "unhandelled modelUpdate", message
 

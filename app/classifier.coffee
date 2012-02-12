@@ -2,6 +2,10 @@ brain = require("brain")
 stemmer = require("./libs/stemmer").stemmer
 text = require("./text")
 logger = require("./logger")
+_ = require("unserscore")
+
+MINIMUM_TRAINING = 10
+
 # ## User updates
 Classifier = class Classifier extends require("events").EventEmitter
 
@@ -39,14 +43,20 @@ Classifier = class Classifier extends require("events").EventEmitter
     @getBayes(searchId).train(@classificationString(tweet),category)
 
   classify: (searchId, tweet) ->
-    classifiedEvents = this
-    pg = @pg
-    @getBayes(searchId).classify @classificationString(tweet), (category) ->
-      logger.debug "classified #{tweet.id} as #{category}"
-      tweet.category = category
-      classifiedEvents.emit "classified", searchId, tweet, category
-      # store the tweet's classification for if user isn't online right now
-      pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
+    bayes = @getBayes(searchId)
+    bayes.getCats (cats) =>
+      if _.size(cats) > MINIMUM_TRAINING
+        @getBayes(searchId).classify @classificationString(tweet), (category) =>
+          logger.debug "classified #{tweet.id} as #{category}"
+          tweet.category = category
+          @emit "classified", searchId, tweet, category
+          @store(searchId,tweet,category)
+      else
+        @emit "classified", searchId, tweet, UNSEEN
+        @store(searchId,tweet,category)
+
+  store: (searchId,tweet,category) ->
+    @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
   classifyAs: (searchId,tweet,category) ->
     @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
     @emit "classified", searchId, tweet, category
