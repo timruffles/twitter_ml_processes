@@ -3,12 +3,20 @@ logger = require "./logger"
 _ = require "underscore"
 Q = require("q")
 search = text.search
+
 class SearchStore extends require("events").EventEmitter
   constructor: (@redis) ->
   update: (searchId,string) ->
-    @_destroy(searchId).then =>
-      logger.debug "update callback"
-      @save(searchId,string)
+    @redis.hget "searches", searchId, (err,oldString) =>
+      throw err if err
+      @_destroy(searchId).then =>
+        logger.debug "update callback"
+        @save(searchId,string)
+      newQueries = _.difference(
+        search.toQueries(oldString).map((q) -> q.join(" ")),
+        search.toQueries(string).map((q) -> q.join(" "))
+      )
+      @emit "newKeywords", searchId, newQueries.join(", ")
   save: (searchId,string)->
     logger.debug "saving search #{searchId}"
     asQueries = search.toQueries string
@@ -51,12 +59,16 @@ class Search extends require("events").EventEmitter
     @store = new SearchStore(@redis)
     @store.on "keywordsChanged", (queries) =>
       @emit "keywordsChanged", queries
+    @store.on "newKeywords", @search
   updateKeywords: ->
     @store.keywordsChanged()
   create: (searchId,keywordsString) ->
     @store.save(searchId,keywordsString)
-    @search searchId, keywordsString
-  search: (searchId,keywords,emitAs) ->
+  update: (searchId,keywordsString) ->
+    @store.update(searchId,keywordsString)
+  destroy: (searchId) ->
+    @store.destroy(searchId)
+  search: (searchId,keywordsString) =>
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
       return logger.error "Could not retrive tweets,\n#{err}" if err
       logger.log "Received #{result.results} tweets for new query #{keywordsString}"
@@ -70,13 +82,8 @@ class Search extends require("events").EventEmitter
           screen_name: tweet.from_user
           profile_image_url_https: tweet.profile_image_url
           name: ""
+        @storeTweet tweet
         @emit "match", searchId, tweet
-  # rails:/app/models/search for format
-  update: (searchId,keywordsString) ->
-    @store.update(searchId,keywordsString)
-    @search(search,keywordsString)
-  destroy: (searchId) ->
-    @store.destroy(searchId)
   tweet: (tweet) ->
     tweetWords = text.tweetToWords tweet
     queriesFulfilled = {}
@@ -92,6 +99,8 @@ class Search extends require("events").EventEmitter
             queriesFulfilled[query] = true
             @emit "match", searchId, tweet
 
+    @storeTweet tweet
+  storeTweet: (tweet) ->
     tweet.text = text.transliterateToUtfBmp(tweet.text)
     @pg.query "INSERT INTO tweets (id, tweet, created_at, updated_at) values ($1, $2, $3, $4)",
               [tweet.id, JSON.stringify(tweet), new Date(Date.parse(tweet.created_at)),new Date],

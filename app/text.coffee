@@ -52,10 +52,10 @@ module.exports = _.extend text,
   search: search = 
     # returns a set of sorted arrays representing a logical search (eg [w1,w2] = w1 && w2)
     toQueries: (phrase = "") ->
-      phrase.split(",").map((phrase) ->
+      _.uniq(phrase.split(",").map((phrase) ->
         text.toWords(phrase).sort()
       ).filter((phrase) ->
         phrase.length > 0
-      )
+      ))
   classify: {}
 

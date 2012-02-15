@@ -2,7 +2,7 @@ brain = require("brain")
 stemmer = require("./libs/stemmer").stemmer
 text = require("./text")
 logger = require("./logger")
-_ = require("unserscore")
+_ = require("underscore")
 
 MINIMUM_TRAINING = 10
 
@@ -49,16 +49,15 @@ Classifier = class Classifier extends require("events").EventEmitter
         @getBayes(searchId).classify @classificationString(tweet), (category) =>
           logger.debug "classified #{tweet.id} as #{category}"
           tweet.category = category
-          @emit "classified", searchId, tweet, category
-          @store(searchId,tweet,category)
+          @classifyAs(searchId,tweet,category)
       else
-        @emit "classified", searchId, tweet, UNSEEN
-        @store(searchId,tweet,category)
+        @classifyAs(searchId,tweet,UNSEEN)
 
   store: (searchId,tweet,category) ->
-    @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
+    @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category, created_at) VALUES ($1, $2, $3, $4)", [searchId, tweet.id, category,new Date]
+
   classifyAs: (searchId,tweet,category) ->
-    @pg.query "INSERT INTO classified_tweets (search_id, tweet_id, category) VALUES ($1, $2, $3)", [searchId, tweet.id, category]
+    @store searchId, tweet, category
     @emit "classified", searchId, tweet, category
 
 module.exports.Classifier = Classifier
