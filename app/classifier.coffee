@@ -6,7 +6,6 @@ _ = require("underscore")
 
 MINIMUM_TRAINING = 10
 
-# ## User updates
 Classifier = class Classifier extends require("events").EventEmitter
 
   this.INTERESTING = INTERESTING = "interesting"
@@ -29,9 +28,9 @@ Classifier = class Classifier extends require("events").EventEmitter
             logger.error arguments
       thresholds:
         boring: 1
-        interesting: 3
+        interesting: 1
       # category if can't classify
-      def: INTERESTING
+      def: UNSEEN
 
   classificationString: (tweet) ->
     text.tweetToWords(tweet).map((word) ->
@@ -45,7 +44,8 @@ Classifier = class Classifier extends require("events").EventEmitter
   classify: (searchId, tweet) ->
     bayes = @getBayes(searchId)
     bayes.getCats (cats) =>
-      if _.size(cats) > MINIMUM_TRAINING
+      docs = _.reduce(cats,((s,v) -> s+v),0)
+      if docs > MINIMUM_TRAINING
         @getBayes(searchId).classify @classificationString(tweet), (category) =>
           logger.debug "classified #{tweet.id} as #{category}"
           tweet.category = category
