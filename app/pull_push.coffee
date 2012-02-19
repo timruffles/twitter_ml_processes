@@ -93,7 +93,7 @@ publish = (searchId,tweet) ->
   ].forEach (key) ->
     forPubnub.user[key] = tweet.user[key]
   forPubnub.user.id = tweet.user.id_str
-  forPubnub.category = category
+  forPubnub.category = tweet.category
   pubnub.publish
     channel : "search:#{searchId}:tweets:add"
     message :
