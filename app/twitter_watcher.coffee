@@ -59,7 +59,7 @@ class TweetWatcher extends require("events").EventEmitter
     @reconnect(new Date + delay)
 
   reconnect: =>
-    lazyDefine this, "reconnect", _.afterLongestDelay =>
+    lazyDefine this, "reconnect", afterLongestDelay =>
       logger.log "Reconnecting to stream"
       @_connect()
 

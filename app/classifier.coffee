@@ -51,6 +51,7 @@ Classifier = class Classifier extends require("events").EventEmitter
           tweet.category = category
           @classifyAs(searchId,tweet,category)
       else
+        logger.debug "Classifying tweet for search #{searchId} as unseen as only seen #{docs} items"
         @classifyAs(searchId,tweet,UNSEEN)
 
   store: (searchId,tweet,category) ->

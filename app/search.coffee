@@ -14,10 +14,11 @@ class SearchStore extends require("events").EventEmitter
         storeLogger.debug "update callback"
         @save(searchId,string)
       newQueries = _.difference(
-        search.toQueries(oldString).map((q) -> q.join(" ")),
-        search.toQueries(string).map((q) -> q.join(" "))
+        search.toQueries(string).map((q) -> q.join(" ")),
+        JSON.parse(oldString).map((q) -> q.join(" "))
       )
-      @emit "newKeywords", searchId, newQueries.join(", ")
+      if newQueries.length > 0
+        @emit "newKeywords", searchId, newQueries.join(", ")
   save: (searchId,string)->
     storeLogger.debug "saving search #{searchId}"
     asQueries = search.toQueries string
@@ -42,7 +43,7 @@ class SearchStore extends require("events").EventEmitter
     storeLogger.error "SearchStore redis error\n#{err}"
   debug: ->
     storeLogger.debug "Got some stuff from redis"
-    storeLogger.debug arguments
+    storeLogger.dir [].call(arguments)
   ncall: ->
     prom = Q.ncall.apply(Q,arguments)
     prom.then(@debug,@fail)
