@@ -68,6 +68,7 @@ searches.on "match", (searchId,tweet) ->
 
 classifier.on "classified", (searchId,tweet,category) ->
   logger.debug "tweet classified #{searchId}, #{tweet.id} #{category}"
+  tweet.category = category
   publish searchId, tweet
 
 publish = (searchId,tweet) ->
@@ -92,6 +93,7 @@ publish = (searchId,tweet) ->
   ].forEach (key) ->
     forPubnub.user[key] = tweet.user[key]
   forPubnub.user.id = tweet.user.id_str
+  forPubnub.category = category
   pubnub.publish
     channel : "search:#{searchId}:tweets:add"
     message :
