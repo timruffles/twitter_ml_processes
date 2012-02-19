@@ -1,7 +1,7 @@
 brain = require("brain")
 stemmer = require("./libs/stemmer").stemmer
 text = require("./text")
-logger = require("./logger")
+logger = require("./logger").forContext("Classifier")
 _ = require("underscore")
 
 MINIMUM_TRAINING = 10

@@ -6,7 +6,7 @@ events = require('events')
 pubnub = require("pubnub").init
   publish_key: env.PN_PUB
   subscribe_key: env.PN_SUB
-logger = require("./logger")
+logger = require("./logger").forContext("Main")
 Q = require("q")
 Queue = require "./queue"
 

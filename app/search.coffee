@@ -1,5 +1,6 @@
 text = require "./text"
-logger = require "./logger"
+logger = require("./logger").forContext("Search")
+storeLogger = require("./logger").forContext("SearchStore")
 _ = require "underscore"
 Q = require("q")
 search = text.search
@@ -10,7 +11,7 @@ class SearchStore extends require("events").EventEmitter
     @redis.hget "searches", searchId, (err,oldString) =>
       throw err if err
       @_destroy(searchId).then =>
-        logger.debug "update callback"
+        storeLogger.debug "update callback"
         @save(searchId,string)
       newQueries = _.difference(
         search.toQueries(oldString).map((q) -> q.join(" ")),
@@ -18,7 +19,7 @@ class SearchStore extends require("events").EventEmitter
       )
       @emit "newKeywords", searchId, newQueries.join(", ")
   save: (searchId,string)->
-    logger.debug "saving search #{searchId}"
+    storeLogger.debug "saving search #{searchId}"
     asQueries = search.toQueries string
     promise = @ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
     promise.then @keywordsChanged
@@ -28,7 +29,7 @@ class SearchStore extends require("events").EventEmitter
     promise.then @keywordsChanged
     promise
   _destroy: (searchId) ->
-    logger.debug "destroying search #{searchId}"
+    storeLogger.debug "destroying search #{searchId}"
     @ncall @redis.hdel, @redis, "searches", searchId
   all: ->
     @ncall(@redis.hgetall, @redis, "searches").then (searches = {}) ->
@@ -38,10 +39,10 @@ class SearchStore extends require("events").EventEmitter
         h
       ), {}
   fail: (err) ->
-    logger.error "SearchStore redis error\n#{err}"
+    storeLogger.error "SearchStore redis error\n#{err}"
   debug: ->
-    logger.debug "Got some stuff from redis"
-    logger.debug arguments
+    storeLogger.debug "Got some stuff from redis"
+    storeLogger.debug arguments
   ncall: ->
     prom = Q.ncall.apply(Q,arguments)
     prom.then(@debug,@fail)
