@@ -24,6 +24,7 @@ class SearchStore extends require("events").EventEmitter
     asQueries = search.toQueries string
     promise = @ncall @redis.hset, @redis, "searches", searchId, JSON.stringify(asQueries)
     promise.then @keywordsChanged
+    @emit "newKeywords", searchId, string
     promise
   destroy: (searchId) ->
     promise = @_destroy(searchId)
@@ -73,7 +74,7 @@ class Search extends require("events").EventEmitter
   search: (searchId,keywordsString) =>
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
       return logger.error "Could not retrive tweets,\n#{err}" if err
-      logger.log "Received #{result.results} tweets for new query #{keywordsString}"
+      logger.log "Received #{result.results} tweets for new keywords #{keywordsString}"
       result.results.forEach (tweet) =>
         # tweet IDs are too long for JS, need to use the string everywhere
         tweet.id = tweet.id_str
