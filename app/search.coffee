@@ -72,9 +72,11 @@ class Search extends require("events").EventEmitter
   destroy: (searchId) ->
     @store.destroy(searchId)
   search: (searchId,keywordsString) =>
+    unless keywordsString.length > 0
+      return logger.error "Empty search attempted"
     @twitter.search keywordsString, include_entities: "t", (err,result) =>
       return logger.error "Could not retrive tweets,\n#{err}" if err
-      logger.log "Received #{result.results} tweets for new keywords #{keywordsString}"
+      logger.log "Received #{result.results.length} tweets for new keywords #{keywordsString}"
       result.results.forEach (tweet) =>
         # tweet IDs are too long for JS, need to use the string everywhere
         tweet.id = tweet.id_str
