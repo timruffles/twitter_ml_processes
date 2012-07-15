@@ -85,7 +85,8 @@ class Search extends require("events").EventEmitter
         tweet.user =
           id_str: tweet.from_user_id_str
           screen_name: tweet.from_user
-          profile_image_url_https: tweet.profile_image_url
+          profile_image_url_https: tweet.profile_image_url_https
+          profile_image_url: tweet.profile_image_url
           name: ""
         @storeTweet tweet
         @emit "match", searchId, tweet
