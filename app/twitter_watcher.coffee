@@ -22,7 +22,11 @@ class TweetWatcher extends require("events").EventEmitter
   makeStream: (keywords, established) ->
     twitterEvents = this
     onEstablished = _.once established
-    @twit.stream "statuses/filter", {track: keywords}, (stream) =>
+		if keywords.length == 0
+			logger.log "Nothing to search for, connection contract fulfilled by not connecting"
+			onEstablished()
+			return
+		@twit.stream "statuses/filter", {track: keywords}, (stream) =>
       logger.log "Connection established, tracking '#{keywords}'"
       stream.on "data", (data) =>
         # twdocs: clear connected on first response
